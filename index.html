@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter — CAT Mentorship Platform</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+  /* ── PASTE YOUR SUPABASE CREDENTIALS BELOW ── */
+  /* Edit the two lines in the <script> at the bottom */
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e4e4e0;
+    --text: #1a1a18;
+    --muted: #6b6b67;
+    --accent: #1a1a18;
+    --accent-light: #f0f0ec;
+    --error: #c0392b;
+    --success: #1a7a4a;
+    --radius: 10px;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .page-wrap {
+    display: flex;
+    width: 100%;
+    max-width: 960px;
+    min-height: 580px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.06);
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    width: 340px;
+    flex-shrink: 0;
+    background: var(--accent);
+    color: #fff;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .brand { display: flex; flex-direction: column; gap: 8px; }
+  .brand-name {
+    font-family: var(--font-display);
+    font-size: 42px;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: #fff;
+  }
+  .brand-tagline {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  .left-features { display: flex; flex-direction: column; gap: 20px; }
+  .feature-item { display: flex; gap: 14px; align-items: flex-start; }
+  .feature-dot {
+    width: 6px; height: 6px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .feature-text { font-size: 13.5px; color: rgba(255,255,255,0.7); line-height: 1.5; font-weight: 300; }
+
+  .left-footer { font-size: 11px; color: rgba(255,255,255,0.25); font-weight: 300; }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    flex: 1;
+    padding: 48px 44px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 0; margin-bottom: 36px; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    padding: 10px 20px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── FORMS ── */
+  .form-panel { display: none; flex-direction: column; gap: 0; }
+  .form-panel.active { display: flex; }
+
+  .form-section-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 28px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-section-title:first-child { margin-top: 0; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-row.full { grid-template-columns: 1fr; }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .field label { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .field input, .field select {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color 0.15s;
+    outline: none;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select { cursor: pointer; }
+
+  .score-unit {
+    position: relative;
+  }
+  .score-unit input { padding-right: 48px; }
+  .score-unit .unit {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; color: var(--muted); pointer-events: none;
+  }
+
+  /* multi-select chips for target tier */
+  .chip-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--muted);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* ── BUTTONS ── */
+  .btn-primary {
+    height: 44px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    width: 100%;
+    margin-top: 8px;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-secondary {
+    height: 36px;
+    background: none;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 16px;
+    transition: all 0.15s;
+    margin-top: 6px;
+  }
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+  /* ── STEPPER (for registration) ── */
+  .stepper { display: flex; align-items: center; gap: 0; margin-bottom: 32px; }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; color: var(--muted);
+  }
+  .step.active { color: var(--text); }
+  .step.done { color: var(--success); }
+  .step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent-light); color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; flex-shrink: 0;
+  }
+  .step.active .step-num { background: var(--accent); color: #fff; }
+  .step.done .step-num { background: var(--success); color: #fff; }
+  .step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; }
+
+  /* reg step panels */
+  .reg-step { display: none; }
+  .reg-step.active { display: block; }
+
+  /* ── ALERTS ── */
+  .alert {
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert.error { background: #fdf0ef; color: var(--error); border: 1px solid #f5c6c0; display: block; }
+  .alert.success { background: #edf7f2; color: var(--success); border: 1px solid #b6e0c9; display: block; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    .page-wrap { flex-direction: column; }
+    .left-panel { width: 100%; padding: 32px 28px; min-height: unset; }
+    .left-features { display: none; }
+    .right-panel { padding: 32px 24px; }
+    .form-row { grid-template-columns: 1fr; }
+    .form-row.three { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- LEFT -->
+  <div class="left-panel">
+    <div class="brand">
+      <div class="brand-name">Chapter</div>
+      <div class="brand-tagline">CAT Mentorship Platform</div>
+    </div>
+    <div class="left-features">
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        <div class="feature-text">Personalised study planner with daily timetable and target board</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        <div class="feature-text">Track your mock scores and spot patterns across attempts</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        <div class="feature-text">See your personalised college call percentiles based on your profile</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        <div class="feature-text">Direct access to your mentor for doubts and guidance</div>
+      </div>
+    </div>
+    <div class="left-footer">Built for serious CAT aspirants</div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-panel">
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Sign in</button>
+      <button class="tab-btn" onclick="switchTab('register')">Create account</button>
+    </div>
+
+    <!-- ── LOGIN ── -->
+    <div id="login-panel" class="form-panel active">
+      <div id="login-alert" class="alert"></div>
+      <div class="form-row full">
+        <div class="field">
+          <label>Email or mobile number</label>
+          <input type="text" id="login-identifier" placeholder="you@email.com or 9876543210" autocomplete="username">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password">
+        </div>
+      </div>
+      <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign in to Chapter</button>
+      <button class="btn-secondary" onclick="switchTab('register')">New here? Create an account →</button>
+    </div>
+
+    <!-- ── REGISTER ── -->
+    <div id="register-panel" class="form-panel">
+      <div id="reg-alert" class="alert"></div>
+
+      <!-- Stepper -->
+      <div class="stepper">
+        <div class="step active" id="step-ind-1">
+          <div class="step-num" id="snum-1">1</div>
+          <span>Personal</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-ind-2">
+          <div class="step-num" id="snum-2">2</div>
+          <span>Academic</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-ind-3">
+          <div class="step-num" id="snum-3">3</div>
+          <span>CAT &amp; Goals</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-ind-4">
+          <div class="step-num" id="snum-4">4</div>
+          <span>Account</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Personal -->
+      <div class="reg-step active" id="reg-step-1">
+        <div class="form-row">
+          <div class="field"><label>Full name *</label><input type="text" id="r-name" placeholder="Arjun Sharma"></div>
+          <div class="field">
+            <label>Gender *</label>
+            <select id="r-gender">
+              <option value="">Select</option>
+              <option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Mobile number *</label><input type="tel" id="r-mobile" placeholder="9876543210" maxlength="10"></div>
+          <div class="field"><label>City *</label><input type="text" id="r-city" placeholder="Mumbai"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Current company</label><input type="text" id="r-company" placeholder="Infosys / Fresher"></div>
+          <div class="field"><label>Current role / designation</label><input type="text" id="r-role" placeholder="Software Engineer"></div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Work experience</label>
+            <select id="r-workex">
+              <option value="0">Fresher (0 years)</option>
+              <option value="1">Less than 1 year</option>
+              <option value="1.5">1 – 2 years</option>
+              <option value="2.5">2 – 3 years</option>
+              <option value="3.5">3 – 4 years</option>
+              <option value="4.5">4 – 5 years</option>
+              <option value="5.5">More than 5 years</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="nextStep(1)">Continue →</button>
+      </div>
+
+      <!-- Step 2: Academic -->
+      <div class="reg-step" id="reg-step-2">
+        <div class="form-section-title">10th standard</div>
+        <div class="form-row">
+          <div class="field score-unit">
+            <label>10th score *</label>
+            <input type="number" id="r-tenth" placeholder="85.4" min="0" max="100" step="0.1">
+            <span class="unit">%</span>
+          </div>
+        </div>
+
+        <div class="form-section-title">12th standard</div>
+        <div class="form-row">
+          <div class="field score-unit">
+            <label>12th score *</label>
+            <input type="number" id="r-twelfth" placeholder="88.0" min="0" max="100" step="0.1">
+            <span class="unit">%</span>
+          </div>
+        </div>
+
+        <div class="form-section-title">Graduation</div>
+        <div class="form-row">
+          <div class="field"><label>Degree *</label><input type="text" id="r-degree" placeholder="B.Tech / B.Com / B.Sc etc."></div>
+          <div class="field"><label>Graduating year *</label><input type="number" id="r-gradyear" placeholder="2022" min="2000" max="2030"></div>
+        </div>
+        <div class="form-row">
+          <div class="field score-unit">
+            <label>Score *</label>
+            <input type="number" id="r-gradscore" placeholder="7.8" min="0" max="100" step="0.01">
+            <span class="unit" id="grad-unit">CGPA</span>
+          </div>
+          <div class="field">
+            <label>Score type *</label>
+            <select id="r-gradtype" onchange="document.getElementById('grad-unit').textContent = this.value === 'cgpa' ? 'CGPA' : '%'">
+              <option value="cgpa">CGPA</option>
+              <option value="percentage">Percentage</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button class="btn-secondary" onclick="prevStep(2)">← Back</button>
+          <button class="btn-primary" onclick="nextStep(2)" style="margin-top:0;">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: CAT & Goals -->
+      <div class="reg-step" id="reg-step-3">
+        <div class="form-row">
+          <div class="field">
+            <label>CAT attempt *</label>
+            <select id="r-attempt">
+              <option value="">Select</option>
+              <option value="1st">1st attempt</option>
+              <option value="2nd">2nd attempt</option>
+              <option value="3rd+">3rd attempt or more</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Category *</label>
+            <select id="r-category">
+              <option value="">Select</option>
+              <option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section-title">Target college tier</div>
+        <div class="chip-group" id="tier-chips">
+          <div class="chip" data-val="IIM ABC" onclick="toggleChip(this)">IIM A, B, C</div>
+          <div class="chip" data-val="New IIMs" onclick="toggleChip(this)">New IIMs</div>
+          <div class="chip" data-val="Non-IIM Top Schools" onclick="toggleChip(this)">Top Non-IIMs</div>
+          <div class="chip selected" data-val="All" onclick="toggleChip(this)">All institutes</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn-secondary" onclick="prevStep(3)">← Back</button>
+          <button class="btn-primary" onclick="nextStep(3)" style="margin-top:0;">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Account credentials -->
+      <div class="reg-step" id="reg-step-4">
+        <div class="form-row full">
+          <div class="field">
+            <label>Email address *</label>
+            <input type="email" id="r-email" placeholder="you@gmail.com" autocomplete="email">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="field">
+            <label>Password * (min 8 characters)</label>
+            <input type="password" id="r-password" placeholder="Create a strong password" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="field">
+            <label>Confirm password *</label>
+            <input type="password" id="r-confirm" placeholder="Repeat your password" autocomplete="new-password">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button class="btn-secondary" onclick="prevStep(4)">← Back</button>
+          <button class="btn-primary" id="reg-btn" onclick="doRegister()" style="margin-top:0;">Create my account</button>
+        </div>
+      </div>
+
+    </div><!-- /register-panel -->
+
+  </div><!-- /right-panel -->
+</div><!-- /page-wrap -->
+
+<script>
+// ════════════════════════════════════════════════════
+//  PASTE YOUR SUPABASE CREDENTIALS HERE
+// ════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://jcdnuzfycuqxxuukxyss.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_FKY1rNd_vLlv2kGle5Bo4Q_uEoedYkt';
+// ════════════════════════════════════════════════════
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── Redirect if already logged in ──
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) redirectByRole(session.user.id);
+})();
+
+async function redirectByRole(uid) {
+  const { data } = await sb.from('profiles').select('role').eq('id', uid).single();
+  const role = data?.role || 'student';
+  if (role === 'admin') location.href = 'admin.html';
+  else if (role === 'mentor') location.href = 'mentor.html';
+  else location.href = 'dashboard.html';
+}
+
+// ── Tab switching ──
+function switchTab(tab) {
+  document.getElementById('login-panel').classList.toggle('active', tab === 'login');
+  document.getElementById('register-panel').classList.toggle('active', tab === 'register');
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (tab === 'login')));
+}
+
+// ── Login ──
+async function doLogin() {
+  const raw = document.getElementById('login-identifier').value.trim();
+  const pw  = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const alert = document.getElementById('login-alert');
+  alert.className = 'alert';
+
+  if (!raw || !pw) return showAlert('login-alert', 'Please enter your credentials.', 'error');
+
+  // Detect mobile vs email
+  let email = raw;
+  if (/^\d{10}$/.test(raw)) {
+    // look up email by mobile
+    const { data, error } = await sb.from('profiles').select('id').eq('mobile', raw).single();
+    if (error || !data) return showAlert('login-alert', 'No account found with this mobile number.', 'error');
+    // get email from auth — we store it during registration via metadata
+    const { data: sd } = await sb.from('profiles').select('id').eq('mobile', raw).single();
+    // We'll use mobile lookup via a custom email pattern stored at registration
+    email = raw + '@chapter.mobile';
+  }
+
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false; btn.textContent = 'Sign in to Chapter';
+
+  if (error) return showAlert('login-alert', error.message, 'error');
+  redirectByRole(data.user.id);
+}
+
+// ── Multi-step register ──
+let currentStep = 1;
+
+function nextStep(from) {
+  if (!validateStep(from)) return;
+  setStep(from + 1);
+}
+function prevStep(from) { setStep(from - 1); }
+
+function setStep(n) {
+  currentStep = n;
+  document.querySelectorAll('.reg-step').forEach((el, i) => el.classList.toggle('active', i + 1 === n));
+  for (let i = 1; i <= 4; i++) {
+    const ind = document.getElementById('step-ind-' + i);
+    const num = document.getElementById('snum-' + i);
+    ind.className = 'step' + (i === n ? ' active' : i < n ? ' done' : '');
+    num.textContent = i < n ? '✓' : i;
+  }
+}
+
+function validateStep(n) {
+  const err = id => showAlert('reg-alert', `Please fill in all required fields.`, 'error');
+  if (n === 1) {
+    if (!v('r-name') || !v('r-gender') || !v('r-mobile') || !v('r-city')) return err();
+    if (!/^\d{10}$/.test(document.getElementById('r-mobile').value.trim())) {
+      return showAlert('reg-alert', 'Mobile number must be exactly 10 digits.', 'error');
+    }
+  }
+  if (n === 2) {
+    if (!v('r-tenth') || !v('r-twelfth') || !v('r-degree') || !v('r-gradyear') || !v('r-gradscore')) return err();
+  }
+  if (n === 3) {
+    if (!v('r-attempt') || !v('r-category')) return err();
+    if (!getSelectedTiers().length) return showAlert('reg-alert', 'Please select at least one target tier.', 'error');
+  }
+  clearAlert('reg-alert');
+  return true;
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+
+function toggleChip(el) {
+  const val = el.dataset.val;
+  if (val === 'All') {
+    document.querySelectorAll('#tier-chips .chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  } else {
+    document.querySelector('[data-val="All"]').classList.remove('selected');
+    el.classList.toggle('selected');
+  }
+}
+
+function getSelectedTiers() {
+  return [...document.querySelectorAll('#tier-chips .chip.selected')].map(c => c.dataset.val);
+}
+
+async function doRegister() {
+  const btn = document.getElementById('reg-btn');
+  clearAlert('reg-alert');
+
+  const email    = v('r-email');
+  const password = v('r-password');
+  const confirm  = v('r-confirm');
+
+  if (!email || !password || !confirm) return showAlert('reg-alert', 'Please fill in all fields.', 'error');
+  if (password.length < 8) return showAlert('reg-alert', 'Password must be at least 8 characters.', 'error');
+  if (password !== confirm) return showAlert('reg-alert', 'Passwords do not match.', 'error');
+
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  const mobile = v('r-mobile');
+
+  // Sign up with Supabase auth
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { role: 'student', full_name: v('r-name') }
+    }
+  });
+
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Create my account';
+    return showAlert('reg-alert', error.message, 'error');
+  }
+
+  const uid = data.user.id;
+
+  // Update profile
+  await sb.from('profiles').upsert({
+    id: uid,
+    role: 'student',
+    full_name: v('r-name'),
+    gender: v('r-gender'),
+    mobile,
+    city: v('r-city'),
+  });
+
+  // Insert student details
+  await sb.from('student_details').upsert({
+    id: uid,
+    tenth_score: parseFloat(v('r-tenth')),
+    twelfth_score: parseFloat(v('r-twelfth')),
+    graduation_degree: v('r-degree'),
+    graduation_year: parseInt(v('r-gradyear')),
+    graduation_score: parseFloat(v('r-gradscore')),
+    graduation_score_type: document.getElementById('r-gradtype').value,
+    company: v('r-company'),
+    role: v('r-role'),
+    work_experience: parseFloat(document.getElementById('r-workex').value),
+    cat_attempt: v('r-attempt'),
+    category: v('r-category'),
+    target_tier: getSelectedTiers().join(', '),
+  });
+
+  // Also store mobile-linked email for mobile login
+  // (mobile login uses pattern: mobile@chapter.mobile)
+  await sb.auth.signUp({
+    email: mobile + '@chapter.mobile',
+    password,
+    options: { data: { role: 'student', primary_uid: uid } }
+  }).catch(() => {}); // may already exist, ignore
+
+  btn.disabled = false; btn.textContent = 'Create my account';
+  showAlert('reg-alert', 'Account created! Redirecting…', 'success');
+  setTimeout(() => location.href = 'dashboard.html', 1500);
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  return false;
+}
+function clearAlert(id) {
+  const el = document.getElementById(id);
+  el.className = 'alert';
+}
+</script>
+</body>
+</html>
