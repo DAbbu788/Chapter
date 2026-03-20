@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f7f7f5;
+  --surface:#ffffff;
+  --border:#e4e4e0;
+  --text:#1a1a18;
+  --muted:#6b6b67;
+  --accent:#1a1a18;
+  --accent-light:#f0f0ec;
+  --success:#1a7a4a;
+  --success-bg:#edf7f2;
+  --error:#c0392b;
+  --warn:#b8620a;
+  --warn-bg:#fef6ec;
+  --radius:10px;
+  --sidebar:220px;
+  --font-display:'DM Serif Display',Georgia,serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+}
+
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;background:var(--accent);
+  min-height:100vh;display:flex;flex-direction:column;
+  position:fixed;left:0;top:0;bottom:0;z-index:100;
+}
+.sidebar-brand{padding:28px 24px 24px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.sidebar-brand-name{font-family:var(--font-display);font-size:26px;color:#fff;letter-spacing:-0.5px}
+.sidebar-brand-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px;font-weight:300}
+.admin-badge{
+  display:inline-block;margin-top:6px;padding:2px 8px;
+  background:rgba(255,255,255,0.12);border-radius:4px;
+  font-size:10px;color:rgba(255,255,255,0.6);font-weight:500;letter-spacing:0.05em;text-transform:uppercase;
+}
+
+.nav{flex:1;padding:16px 0}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:11px 24px;
+  font-size:13.5px;font-weight:400;color:rgba(255,255,255,0.55);
+  cursor:pointer;border-left:2px solid transparent;transition:all 0.15s;
+}
+.nav-item:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.05)}
+.nav-item.active{color:#fff;border-left-color:#fff;background:rgba(255,255,255,0.07)}
+.nav-icon{width:16px;height:16px;opacity:0.7;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.nav-count{
+  margin-left:auto;background:rgba(255,255,255,0.15);
+  border-radius:10px;padding:1px 7px;font-size:10px;color:rgba(255,255,255,0.7);
+}
+
+.sidebar-footer{padding:20px 24px;border-top:1px solid rgba(255,255,255,0.08)}
+.user-pill{display:flex;align-items:center;gap:10px}
+.user-avatar{
+  width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:500;color:#fff;flex-shrink:0;
+}
+.user-name{font-size:12.5px;color:rgba(255,255,255,0.7);font-weight:400}
+.user-role{font-size:10px;color:rgba(255,255,255,0.3)}
+.logout-btn{
+  margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1);border-radius:6px;
+  color:rgba(255,255,255,0.5);font-size:12px;font-family:var(--font-body);
+  cursor:pointer;transition:all 0.15s;
+}
+.logout-btn:hover{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.8)}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.page-title{font-size:17px;font-weight:500}
+.content{padding:28px 32px;flex:1}
+
+/* ── SECTIONS ── */
+.section{display:none}
+.section.active{display:block}
+
+/* ── STAT CARDS ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:20px;
+}
+.stat-val{font-size:28px;font-weight:500;line-height:1}
+.stat-label{font-size:12px;color:var(--muted);margin-top:6px}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
+.card-title{font-size:14px;font-weight:500;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* ── SEARCH ── */
+.search-bar{
+  height:36px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);
+  font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface);
+  outline:none;width:240px;transition:border-color 0.15s;
+}
+.search-bar:focus{border-color:var(--accent)}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{
+  text-align:left;padding:8px 12px;font-size:11px;font-weight:500;
+  color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+.data-table td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--accent-light)}
+
+/* ── FORM ELEMENTS ── */
+input,select,textarea{
+  font-family:var(--font-body);font-size:13.5px;color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);outline:none;width:100%;transition:border-color 0.15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input,select{height:38px;padding:0 12px}
+textarea{padding:10px 12px;resize:vertical;min-height:80px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:500;color:var(--muted)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+/* ── BUTTONS ── */
+.btn{height:36px;padding:0 16px;border-radius:var(--radius);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{opacity:0.85}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--text)}
+.btn-danger{background:none;border:1px solid #f5c6c0;color:var(--error)}
+.btn-danger:hover{background:#fdf0ef}
+.btn-success{background:none;border:1px solid #b6e0c9;color:var(--success)}
+.btn-success:hover{background:var(--success-bg)}
+.btn-sm{height:28px;padding:0 10px;font-size:12px}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-green{background:var(--success-bg);color:var(--success)}
+.badge-gray{background:var(--accent-light);color:var(--muted)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-blue{background:#e8f0fb;color:#1a5fa5}
+.badge-purple{background:#f0eeff;color:#5b3fd4}
+
+/* ── ALERTS ── */
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:none}
+.alert.error{background:#fdf0ef;color:var(--error);border:1px solid #f5c6c0;display:block}
+.alert.success{background:var(--success-bg);color:var(--success);border:1px solid #b6e0c9;display:block}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 8px 40px rgba(0,0,0,0.12)}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0}
+
+/* ── PROFILE DRAWER ── */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);display:none;z-index:200}
+.drawer-overlay.open{display:block}
+.drawer{
+  position:fixed;right:0;top:0;bottom:0;width:480px;
+  background:var(--surface);box-shadow:-4px 0 24px rgba(0,0,0,0.1);
+  overflow-y:auto;padding:28px;z-index:201;
+  transform:translateX(100%);transition:transform 0.25s ease;
+}
+.drawer.open{transform:translateX(0)}
+.drawer-title{font-size:18px;font-weight:500;margin-bottom:4px}
+.drawer-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.detail-section{margin-bottom:20px}
+.detail-section-title{
+  font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);
+}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-item{}
+.detail-label{font-size:11px;color:var(--muted);margin-bottom:2px}
+.detail-val{font-size:13.5px;font-weight:500}
+
+/* mock mini table */
+.mini-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+.mini-table th{padding:5px 8px;font-size:11px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);text-align:left}
+.mini-table td{padding:7px 8px;border-bottom:1px solid var(--border)}
+.mini-table tr:last-child td{border-bottom:none}
+
+/* doubt thread */
+.doubt-thread{border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.doubt-thread-header{padding:12px 16px;background:var(--accent-light);cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.doubt-thread-title{font-size:13.5px;font-weight:500}
+.doubt-thread-body{display:none;padding:16px}
+.doubt-thread.open .doubt-thread-body{display:block}
+.reply-item{padding:10px 12px;border-radius:8px;background:var(--accent-light);margin-bottom:8px;font-size:13px}
+.reply-author{font-weight:500;font-size:12px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.reply-form{display:flex;gap:8px;margin-top:12px}
+.reply-form textarea{min-height:60px;font-size:13px}
+
+/* announcement cards */
+.ann-card{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:16px;margin-bottom:10px}
+.ann-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.ann-body{font-size:13px;color:var(--muted);line-height:1.6}
+.ann-link{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--accent);font-weight:500}
+.ann-date{font-size:11px;color:var(--muted);margin-top:6px}
+.ann-actions{display:flex;gap:8px;margin-top:10px}
+
+/* college edit table */
+.college-edit-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.college-edit-table th{padding:7px 10px;font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
+.college-edit-table td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.college-edit-table input{height:30px;font-size:12px;padding:0 8px;border-radius:6px}
+.college-edit-table tr:hover td{background:var(--accent-light)}
+
+/* empty */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-icon{font-size:32px;margin-bottom:10px;opacity:0.4}
+.empty-text{font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-name">Chapter</div>
+    <div class="sidebar-brand-sub">CAT Mentorship</div>
+    <div class="admin-badge">Admin</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showSection('students',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+      Students
+      <span class="nav-count" id="nc-students">–</span>
+    </div>
+    <div class="nav-item" onclick="showSection('mentors',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5"/><circle cx="12" cy="7" r="2"/><path d="M9.5 13c0-1.9 1.1-3.5 2.5-3.5S14.5 11.1 14.5 13"/></svg>
+      Mentors
+      <span class="nav-count" id="nc-mentors">–</span>
+    </div>
+    <div class="nav-item" onclick="showSection('doubts',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 10a2 2 0 01-2 2H5l-3 3V4a2 2 0 012-2h8a2 2 0 012 2v6z"/></svg>
+      All Doubts
+      <span class="nav-count" id="nc-doubts">–</span>
+    </div>
+    <div class="nav-item" onclick="showSection('announcements',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 6A5 5 0 003 6c0 4-2 5-2 5h14s-2-1-2-5z"/><path d="M9.73 13a2 2 0 01-3.46 0"/></svg>
+      Announcements
+    </div>
+    <div class="nav-item" onclick="showSection('colleges',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1L1 5v1h14V5L8 1z"/><rect x="2" y="7" width="3" height="6"/><rect x="6.5" y="7" width="3" height="6"/><rect x="11" y="7" width="3" height="6"/><line x1="1" y1="13" x2="15" y2="13"/></svg>
+      College Cutoffs
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div>
+        <div class="user-name" id="user-name-display">Admin</div>
+        <div class="user-role">Administrator</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Sign out</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Students</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <input class="search-bar" type="text" id="search-bar" placeholder="Search…" oninput="handleSearch()" style="display:none">
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════ STUDENTS ═══════ -->
+    <div class="section active" id="section-students">
+      <div class="stat-row" id="student-stats"></div>
+      <div class="card">
+        <div class="card-title">
+          All students
+          <input class="search-bar" type="text" id="student-search" placeholder="Search by name, city…" oninput="filterStudents()" style="width:220px">
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="student-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>CAT attempt</th>
+                <th>Work-ex</th>
+                <th>Target tier</th>
+                <th>Mentor</th>
+                <th>Mocks</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="student-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ MENTORS ═══════ -->
+    <div class="section" id="section-mentors">
+      <div class="card">
+        <div class="card-title">
+          Mentors
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-mentor')">+ Add mentor</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Email / Mobile</th><th>Students assigned</th><th>Actions</th></tr></thead>
+          <tbody id="mentor-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════ ALL DOUBTS ═══════ -->
+    <div class="section" id="section-doubts">
+      <div class="card">
+        <div class="card-title">
+          All doubts
+          <div style="display:flex;gap:8px">
+            <select id="doubt-filter-tag" onchange="filterDoubts()" style="width:160px;height:32px;font-size:12px">
+              <option value="">All subjects</option>
+              <option>QA</option><option>VARC</option><option>DILR</option><option>GD/PI</option><option>General</option>
+            </select>
+            <select id="doubt-filter-vis" onchange="filterDoubts()" style="width:140px;height:32px;font-size:12px">
+              <option value="">All visibility</option>
+              <option value="public">Public only</option>
+              <option value="private">Private only</option>
+            </select>
+          </div>
+        </div>
+        <div id="all-doubts-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══════ ANNOUNCEMENTS ═══════ -->
+    <div class="section" id="section-announcements">
+      <div class="card">
+        <div class="card-title">Post an update</div>
+        <div id="ann-alert" class="alert"></div>
+        <div class="field"><label>Title (optional)</label><input type="text" id="ann-title" placeholder="e.g. Important: Mock test schedule"></div>
+        <div class="field"><label>Message</label><textarea id="ann-body" placeholder="Write your update, reminder or announcement here…" style="min-height:100px"></textarea></div>
+        <div class="field"><label>Link / resource URL (optional)</label><input type="text" id="ann-link" placeholder="https://…"></div>
+        <button class="btn btn-primary" onclick="postAnnouncement()">Post update</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Posted updates</div>
+        <div id="ann-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══════ COLLEGE CUTOFFS ═══════ -->
+    <div class="section" id="section-colleges">
+      <div class="card">
+        <div class="card-title">
+          College cutoff data
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-college')">+ Add institute</button>
+            <button class="btn btn-outline btn-sm" onclick="saveAllCutoffs()">Save all changes</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Edit percentile values directly in the table. Click "Save all changes" when done. These values are shown to students personalised to their category.</p>
+        <div id="college-alert" class="alert"></div>
+        <div style="overflow-x:auto">
+          <table class="college-edit-table" id="college-edit-table">
+            <thead>
+              <tr>
+                <th>Institute</th><th>Tier</th>
+                <th>Gen call</th><th>Gen safe</th>
+                <th>OBC call</th><th>OBC safe</th>
+                <th>SC call</th><th>SC safe</th>
+                <th>ST call</th><th>ST safe</th>
+                <th>EWS call</th><th>EWS safe</th>
+                <th>Notes</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="college-edit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ═══════ STUDENT PROFILE DRAWER ═══════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="student-drawer">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+    <div>
+      <div class="drawer-title" id="drawer-name">Student Name</div>
+      <div class="drawer-sub" id="drawer-sub">City · Category</div>
+    </div>
+    <button onclick="closeDrawer()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);margin-top:-4px">×</button>
+  </div>
+
+  <div style="margin-bottom:20px;display:flex;gap:8px;flex-wrap:wrap" id="drawer-badges"></div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Personal</div>
+    <div class="detail-grid" id="drawer-personal"></div>
+  </div>
+  <div class="detail-section">
+    <div class="detail-section-title">Academic</div>
+    <div class="detail-grid" id="drawer-academic"></div>
+  </div>
+  <div class="detail-section">
+    <div class="detail-section-title">CAT profile</div>
+    <div class="detail-grid" id="drawer-cat"></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Assign mentor</div>
+    <div style="display:flex;gap:8px">
+      <select id="drawer-mentor-select" style="flex:1"></select>
+      <button class="btn btn-primary btn-sm" onclick="assignMentor()">Assign</button>
+    </div>
+    <div id="drawer-mentor-alert" class="alert" style="margin-top:8px"></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Mock scores</div>
+    <div id="drawer-mocks"></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Study tasks</div>
+    <div id="drawer-tasks"></div>
+  </div>
+</div>
+
+<!-- ═══════ MODALS ═══════ -->
+
+<!-- Add mentor -->
+<div class="modal-overlay" id="modal-add-mentor">
+  <div class="modal">
+    <div class="modal-title">Add mentor <button class="modal-close" onclick="closeModal('modal-add-mentor')">×</button></div>
+    <div id="mentor-alert" class="alert"></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">You can promote an existing student to mentor, or enter details for a new person. Mentors get a separate login and can see all their assigned students' data.</p>
+    <div class="field"><label>Full name *</label><input type="text" id="m-name" placeholder="Rahul Verma"></div>
+    <div class="grid-2">
+      <div class="field"><label>Email *</label><input type="email" id="m-email" placeholder="rahul@email.com"></div>
+      <div class="field"><label>Mobile</label><input type="tel" id="m-mobile" placeholder="9876543210"></div>
+    </div>
+    <div class="field"><label>Password (they can change later)</label><input type="password" id="m-password" placeholder="Min 8 characters"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="addMentor()">Create mentor account</button>
+  </div>
+</div>
+
+<!-- Promote to mentor -->
+<div class="modal-overlay" id="modal-promote">
+  <div class="modal">
+    <div class="modal-title">Promote to mentor <button class="modal-close" onclick="closeModal('modal-promote')">×</button></div>
+    <div id="promote-alert" class="alert"></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">This will give <strong id="promote-name"></strong> mentor access. They will be able to see all students assigned to them and reply to doubts.</p>
+    <input type="hidden" id="promote-uid">
+    <button class="btn btn-primary" style="width:100%" onclick="confirmPromote()">Yes, promote to mentor</button>
+  </div>
+</div>
+
+<!-- Add college -->
+<div class="modal-overlay" id="modal-add-college">
+  <div class="modal">
+    <div class="modal-title">Add institute <button class="modal-close" onclick="closeModal('modal-add-college')">×</button></div>
+    <div id="add-college-alert" class="alert"></div>
+    <div class="grid-2">
+      <div class="field"><label>Institute name *</label><input type="text" id="nc-name" placeholder="e.g. IIM Calcutta"></div>
+      <div class="field"><label>Tier *</label>
+        <select id="nc-tier">
+          <option value="IIM ABC">IIM ABC</option>
+          <option value="New IIMs">New IIMs</option>
+          <option value="Non-IIM Top Schools">Non-IIM Top Schools</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Gen call %ile</label><input type="number" id="nc-gcall" placeholder="98"></div>
+      <div class="field"><label>Gen safe %ile</label><input type="number" id="nc-gsafe" placeholder="99"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>OBC call</label><input type="number" id="nc-ocall" placeholder="95"></div>
+      <div class="field"><label>OBC safe</label><input type="number" id="nc-osafe" placeholder="97"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>SC call</label><input type="number" id="nc-sccall" placeholder="85"></div>
+      <div class="field"><label>SC safe</label><input type="number" id="nc-scsafe" placeholder="90"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>ST call</label><input type="number" id="nc-stcall" placeholder="80"></div>
+      <div class="field"><label>ST safe</label><input type="number" id="nc-stsafe" placeholder="85"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>EWS call</label><input type="number" id="nc-ewscall" placeholder="97"></div>
+      <div class="field"><label>EWS safe</label><input type="number" id="nc-ewssafe" placeholder="98"></div>
+    </div>
+    <div class="field"><label>Notes</label><input type="text" id="nc-notes" placeholder="Optional notes"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="addCollege()">Add institute</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  PASTE YOUR SUPABASE CREDENTIALS HERE
+// ════════════════════════════════════════
+const SUPABASE_URL = 'https://jcdnuzfycuqxxuukxyss.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_FKY1rNd_vLlv2kGle5Bo4Q_uEoedYkt';
+// ════════════════════════════════════════
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let ADMIN_USER = null;
+let ALL_STUDENTS = [];
+let ALL_MENTORS = [];
+let ALL_DOUBTS = [];
+let ALL_COLLEGES = [];
+let CURRENT_DRAWER_UID = null;
+
+// ── BOOT ──
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return location.href = 'index.html';
+  ADMIN_USER = session.user;
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', ADMIN_USER.id).single();
+  if (profile?.role !== 'admin') return location.href = 'dashboard.html';
+  const name = profile?.full_name || 'Admin';
+  document.getElementById('user-name-display').textContent = name;
+  document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+  loadStudents();
+  loadMentors();
+})();
+
+// ── NAV ──
+function showSection(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent = el.textContent.trim().replace(/\d+/g,'').trim();
+  if (name === 'doubts') loadAllDoubts();
+  if (name === 'announcements') loadAnnouncements();
+  if (name === 'colleges') loadColleges();
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.className = 'alert ' + type;
+}
+function clearAlert(id) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'alert';
+}
+
+// ══════════════════════════════════
+//  STUDENTS
+// ══════════════════════════════════
+
+async function loadStudents() {
+  const { data: profiles } = await sb.from('profiles').select('*').eq('role', 'student');
+  const { data: details } = await sb.from('student_details').select('*, profiles!mentor_id(full_name)');
+  const { data: mocks } = await sb.from('mock_scores').select('student_id');
+
+  // count mocks per student
+  const mockCount = {};
+  (mocks || []).forEach(m => { mockCount[m.student_id] = (mockCount[m.student_id] || 0) + 1; });
+
+  ALL_STUDENTS = (profiles || []).map(p => {
+    const d = (details || []).find(d => d.id === p.id) || {};
+    return { ...p, ...d, mentor_name: d.profiles?.full_name || null, mock_count: mockCount[p.id] || 0 };
+  });
+
+  // stat cards
+  document.getElementById('student-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.length}</div><div class="stat-label">Total students</div></div>
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.filter(s => s.mentor_id).length}</div><div class="stat-label">Assigned to mentor</div></div>
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.filter(s => !s.mentor_id).length}</div><div class="stat-label">Unassigned</div></div>
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.reduce((a,s) => a + s.mock_count, 0)}</div><div class="stat-label">Total mocks logged</div></div>
+  `;
+  document.getElementById('nc-students').textContent = ALL_STUDENTS.length;
+  renderStudentTable(ALL_STUDENTS);
+}
+
+function filterStudents() {
+  const q = document.getElementById('student-search').value.toLowerCase();
+  renderStudentTable(ALL_STUDENTS.filter(s =>
+    (s.full_name || '').toLowerCase().includes(q) ||
+    (s.city || '').toLowerCase().includes(q) ||
+    (s.category || '').toLowerCase().includes(q)
+  ));
+}
+
+function renderStudentTable(students) {
+  const tbody = document.getElementById('student-tbody');
+  if (!students.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No students found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = students.map(s => `
+    <tr>
+      <td style="font-weight:500">${s.full_name || '–'}</td>
+      <td>${s.category ? `<span class="badge badge-gray">${s.category}</span>` : '–'}</td>
+      <td>${s.cat_attempt || '–'}</td>
+      <td>${s.work_experience > 0 ? s.work_experience + ' yrs' : 'Fresher'}</td>
+      <td style="font-size:12px;color:var(--muted)">${s.target_tier || '–'}</td>
+      <td>${s.mentor_name ? `<span class="badge badge-blue">${s.mentor_name}</span>` : '<span class="badge badge-warn">Unassigned</span>'}</td>
+      <td><span class="badge ${s.mock_count > 0 ? 'badge-green' : 'badge-gray'}">${s.mock_count}</span></td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openDrawer('${s.id}')">View profile</button>
+      </td>
+    </tr>`).join('');
+}
+
+// ── STUDENT DRAWER ──
+async function openDrawer(uid) {
+  CURRENT_DRAWER_UID = uid;
+  const s = ALL_STUDENTS.find(s => s.id === uid);
+  if (!s) return;
+
+  document.getElementById('drawer-name').textContent = s.full_name || 'Student';
+  document.getElementById('drawer-sub').textContent = [s.city, s.category].filter(Boolean).join(' · ');
+
+  document.getElementById('drawer-badges').innerHTML = [
+    s.cat_attempt ? `<span class="badge badge-purple">${s.cat_attempt} attempt</span>` : '',
+    s.category ? `<span class="badge badge-gray">${s.category}</span>` : '',
+    s.target_tier ? `<span class="badge badge-blue">${s.target_tier}</span>` : '',
+  ].join('');
+
+  document.getElementById('drawer-personal').innerHTML = detailPairs([
+    ['Mobile', s.mobile], ['Gender', s.gender], ['City', s.city],
+    ['Company', s.company || 'N/A'], ['Role', s.role || 'N/A'],
+    ['Work experience', s.work_experience > 0 ? s.work_experience + ' yrs' : 'Fresher'],
+  ]);
+
+  document.getElementById('drawer-academic').innerHTML = detailPairs([
+    ['10th score', s.tenth_score ? s.tenth_score + '%' : '–'],
+    ['12th score', s.twelfth_score ? s.twelfth_score + '%' : '–'],
+    ['Degree', s.graduation_degree || '–'],
+    ['Grad year', s.graduation_year || '–'],
+    ['Grad score', s.graduation_score ? s.graduation_score + (s.graduation_score_type === 'cgpa' ? ' CGPA' : '%') : '–'],
+  ]);
+
+  document.getElementById('drawer-cat').innerHTML = detailPairs([
+    ['CAT attempt', s.cat_attempt || '–'],
+    ['Category', s.category || '–'],
+    ['Target tier', s.target_tier || '–'],
+  ]);
+
+  // Mentor select
+  const mentorSelect = document.getElementById('drawer-mentor-select');
+  mentorSelect.innerHTML = '<option value="">No mentor</option>' +
+    ALL_MENTORS.map(m => `<option value="${m.id}" ${s.mentor_id === m.id ? 'selected' : ''}>${m.full_name}</option>`).join('');
+
+  // Mocks
+  const { data: mocks } = await sb.from('mock_scores').select('*').eq('student_id', uid).order('test_date');
+  const mocksEl = document.getElementById('drawer-mocks');
+  if (!mocks?.length) {
+    mocksEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">No mocks logged yet</div>';
+  } else {
+    mocksEl.innerHTML = `<table class="mini-table">
+      <thead><tr><th>Platform</th><th>Date</th><th>%ile</th><th>QA</th><th>VARC</th><th>DILR</th></tr></thead>
+      <tbody>${mocks.map(m => `<tr>
+        <td>${m.platform_name || '–'}</td>
+        <td style="white-space:nowrap">${m.test_date ? new Date(m.test_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '–'}</td>
+        <td><strong>${m.overall_percentile ?? '–'}</strong></td>
+        <td>${m.qa_score ?? '–'}</td>
+        <td>${m.varc_score ?? '–'}</td>
+        <td>${m.dilr_score ?? '–'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  // Tasks
+  const { data: tasks } = await sb.from('tasks').select('*').eq('student_id', uid).order('created_at');
+  const tasksEl = document.getElementById('drawer-tasks');
+  if (!tasks?.length) {
+    tasksEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">No tasks added yet</div>';
+  } else {
+    const daily = tasks.filter(t => t.task_type === 'daily');
+    const weekly = tasks.filter(t => t.task_type === 'weekly');
+    tasksEl.innerHTML = `
+      <div style="font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px">Daily (${daily.filter(t=>t.is_done).length}/${daily.length} done)</div>
+      ${daily.map(t => `<div style="font-size:13px;padding:4px 0;${t.is_done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.is_done ? '✓' : '○'} ${t.title}</div>`).join('')}
+      <div style="font-size:12px;font-weight:500;color:var(--muted);margin:10px 0 6px">Weekly (${weekly.filter(t=>t.is_done).length}/${weekly.length} done)</div>
+      ${weekly.map(t => `<div style="font-size:13px;padding:4px 0;${t.is_done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.is_done ? '✓' : '○'} ${t.title}</div>`).join('')}
+    `;
+  }
+
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('student-drawer').classList.add('open');
+  clearAlert('drawer-mentor-alert');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('student-drawer').classList.remove('open');
+}
+
+function detailPairs(pairs) {
+  return pairs.map(([l, v]) => `
+    <div class="detail-item">
+      <div class="detail-label">${l}</div>
+      <div class="detail-val">${v || '–'}</div>
+    </div>`).join('');
+}
+
+async function assignMentor() {
+  const mentorId = document.getElementById('drawer-mentor-select').value || null;
+  clearAlert('drawer-mentor-alert');
+  const { error } = await sb.from('student_details').update({ mentor_id: mentorId }).eq('id', CURRENT_DRAWER_UID);
+  if (error) return showAlert('drawer-mentor-alert', error.message, 'error');
+  showAlert('drawer-mentor-alert', mentorId ? 'Mentor assigned successfully.' : 'Mentor removed.', 'success');
+  loadStudents();
+}
+
+// ══════════════════════════════════
+//  MENTORS
+// ══════════════════════════════════
+
+async function loadMentors() {
+  const { data } = await sb.from('profiles').select('*').in('role', ['mentor', 'admin']);
+  const { data: details } = await sb.from('student_details').select('mentor_id');
+  const countMap = {};
+  (details || []).forEach(d => { if (d.mentor_id) countMap[d.mentor_id] = (countMap[d.mentor_id] || 0) + 1; });
+  ALL_MENTORS = (data || []).filter(m => m.id !== ADMIN_USER?.id || m.role === 'admin');
+  document.getElementById('nc-mentors').textContent = ALL_MENTORS.filter(m => m.role === 'mentor').length;
+  const tbody = document.getElementById('mentor-tbody');
+  if (!ALL_MENTORS.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">No mentors yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = ALL_MENTORS.map(m => `
+    <tr>
+      <td style="font-weight:500">${m.full_name || '–'} ${m.role === 'admin' ? '<span class="badge badge-purple">Admin</span>' : ''}</td>
+      <td style="color:var(--muted);font-size:12.5px">${m.mobile || '–'}</td>
+      <td><span class="badge badge-green">${countMap[m.id] || 0} students</span></td>
+      <td>
+        ${m.role === 'mentor' ? `<button class="btn btn-danger btn-sm" onclick="demoteMentor('${m.id}','${m.full_name}')">Remove mentor</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+async function addMentor() {
+  clearAlert('mentor-alert');
+  const name = document.getElementById('m-name').value.trim();
+  const email = document.getElementById('m-email').value.trim();
+  const mobile = document.getElementById('m-mobile').value.trim();
+  const pw = document.getElementById('m-password').value;
+  if (!name || !email || !pw) return showAlert('mentor-alert', 'Name, email and password are required.', 'error');
+  if (pw.length < 8) return showAlert('mentor-alert', 'Password must be at least 8 characters.', 'error');
+
+  const { data, error } = await sb.auth.signUp({
+    email, password: pw,
+    options: { data: { role: 'mentor', full_name: name } }
+  });
+  if (error) return showAlert('mentor-alert', error.message, 'error');
+
+  await sb.from('profiles').upsert({ id: data.user.id, role: 'mentor', full_name: name, mobile });
+  showAlert('mentor-alert', 'Mentor account created successfully.', 'success');
+  closeModal('modal-add-mentor');
+  loadMentors();
+}
+
+async function demoteMentor(uid, name) {
+  if (!confirm(`Remove mentor access for ${name}? They will become a regular student.`)) return;
+  await sb.from('profiles').update({ role: 'student' }).eq('id', uid);
+  loadMentors(); loadStudents();
+}
+
+// ══════════════════════════════════
+//  ALL DOUBTS
+// ══════════════════════════════════
+
+async function loadAllDoubts() {
+  const { data } = await sb.from('doubts')
+    .select('*, profiles(full_name), doubt_replies(*, profiles(full_name,role))')
+    .order('created_at', { ascending: false });
+  ALL_DOUBTS = data || [];
+  document.getElementById('nc-doubts').textContent = ALL_DOUBTS.filter(d => !d.is_resolved).length;
+  filterDoubts();
+}
+
+function filterDoubts() {
+  const tag = document.getElementById('doubt-filter-tag').value;
+  const vis = document.getElementById('doubt-filter-vis').value;
+  let filtered = ALL_DOUBTS;
+  if (tag) filtered = filtered.filter(d => d.subject_tag === tag);
+  if (vis === 'public') filtered = filtered.filter(d => d.is_public);
+  if (vis === 'private') filtered = filtered.filter(d => !d.is_public);
+  renderAllDoubts(filtered);
+}
+
+function renderAllDoubts(doubts) {
+  const el = document.getElementById('all-doubts-list');
+  if (!doubts.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">No doubts found</div></div>';
+    return;
+  }
+  el.innerHTML = doubts.map(d => `
+    <div class="doubt-thread ${d.is_resolved ? '' : ''}" id="adq-${d.id}">
+      <div class="doubt-thread-header" onclick="toggleThread('${d.id}')">
+        <div>
+          <div class="doubt-thread-title">${d.title}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">
+            By <strong>${d.profiles?.full_name || 'Unknown'}</strong>
+            &nbsp;·&nbsp;<span class="badge badge-gray" style="font-size:10px">${d.subject_tag}</span>
+            &nbsp;·&nbsp;${new Date(d.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
+            &nbsp;·&nbsp;${d.doubt_replies?.length || 0} repl${d.doubt_replies?.length === 1 ? 'y' : 'ies'}
+            &nbsp;·&nbsp;${d.is_public ? '<span class="badge badge-green" style="font-size:10px">Public</span>' : '<span class="badge badge-warn" style="font-size:10px">Private</span>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${d.is_resolved
+            ? `<span class="badge badge-green">Resolved</span><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();markResolved('${d.id}',false)">Reopen</button>`
+            : `<span class="badge badge-warn">Open</span><button class="btn btn-success btn-sm" onclick="event.stopPropagation();markResolved('${d.id}',true)">Mark resolved</button>`}
+        </div>
+      </div>
+      <div class="doubt-thread-body">
+        ${d.body ? `<p style="font-size:13.5px;color:var(--muted);margin-bottom:14px;line-height:1.6">${d.body}</p>` : ''}
+        ${(d.doubt_replies || []).map(r => `
+          <div class="reply-item">
+            <div class="reply-author">
+              ${r.profiles?.full_name || 'User'}
+              ${r.profiles?.role === 'mentor' || r.profiles?.role === 'admin' ? '<span class="badge badge-green">Mentor</span>' : ''}
+            </div>
+            <div style="font-size:13px;color:var(--muted)">${r.body}</div>
+          </div>`).join('')}
+        <div class="reply-form">
+          <textarea id="ar-${d.id}" placeholder="Reply as mentor…"></textarea>
+          <button class="btn btn-primary btn-sm" onclick="adminReply('${d.id}')">Reply</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleThread(id) {
+  document.getElementById('adq-' + id)?.classList.toggle('open');
+}
+
+async function markResolved(id, resolved) {
+  await sb.from('doubts').update({ is_resolved: resolved }).eq('id', id);
+  loadAllDoubts();
+}
+
+async function adminReply(doubtId) {
+  const ta = document.getElementById('ar-' + doubtId);
+  const body = ta?.value.trim();
+  if (!body) return;
+  await sb.from('doubt_replies').insert({ doubt_id: doubtId, author_id: ADMIN_USER.id, body });
+  ta.value = '';
+  loadAllDoubts();
+}
+
+// ══════════════════════════════════
+//  ANNOUNCEMENTS
+// ══════════════════════════════════
+
+async function loadAnnouncements() {
+  const { data } = await sb.from('announcements').select('*').order('created_at', { ascending: false });
+  const el = document.getElementById('ann-list');
+  if (!data?.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📢</div><div class="empty-text">No updates posted yet</div></div>';
+    return;
+  }
+  el.innerHTML = data.map(a => `
+    <div class="ann-card">
+      ${a.title ? `<div class="ann-title">${a.title}</div>` : ''}
+      ${a.body ? `<div class="ann-body">${a.body}</div>` : ''}
+      ${a.link ? `<a class="ann-link" href="${a.link}" target="_blank">View resource →</a>` : ''}
+      <div class="ann-date">${new Date(a.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div>
+      <div class="ann-actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteAnnouncement('${a.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function postAnnouncement() {
+  clearAlert('ann-alert');
+  const title = document.getElementById('ann-title').value.trim();
+  const body = document.getElementById('ann-body').value.trim();
+  const link = document.getElementById('ann-link').value.trim();
+  if (!body && !title) return showAlert('ann-alert', 'Please write a message or title.', 'error');
+  const { error } = await sb.from('announcements').insert({ admin_id: ADMIN_USER.id, title, body, link: link || null });
+  if (error) return showAlert('ann-alert', error.message, 'error');
+  document.getElementById('ann-title').value = '';
+  document.getElementById('ann-body').value = '';
+  document.getElementById('ann-link').value = '';
+  showAlert('ann-alert', 'Update posted successfully.', 'success');
+  loadAnnouncements();
+}
+
+async function deleteAnnouncement(id) {
+  if (!confirm('Delete this announcement?')) return;
+  await sb.from('announcements').delete().eq('id', id);
+  loadAnnouncements();
+}
+
+// ══════════════════════════════════
+//  COLLEGE CUTOFFS
+// ══════════════════════════════════
+
+async function loadColleges() {
+  const { data } = await sb.from('college_profiles').select('*').order('tier').order('name');
+  ALL_COLLEGES = data || [];
+  renderCollegeEditTable();
+}
+
+function renderCollegeEditTable() {
+  const tbody = document.getElementById('college-edit-tbody');
+  tbody.innerHTML = ALL_COLLEGES.map(c => `
+    <tr data-id="${c.id}">
+      <td style="font-weight:500;white-space:nowrap;min-width:160px">${c.name}</td>
+      <td><span class="badge badge-gray" style="white-space:nowrap">${c.tier}</span></td>
+      <td><input type="number" class="cutoff-input" data-field="general_call_percentile" value="${c.general_call_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="general_safe_percentile" value="${c.general_safe_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="obc_call_percentile" value="${c.obc_call_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="obc_safe_percentile" value="${c.obc_safe_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="sc_call_percentile" value="${c.sc_call_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="sc_safe_percentile" value="${c.sc_safe_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="st_call_percentile" value="${c.st_call_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="st_safe_percentile" value="${c.st_safe_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="ews_call_percentile" value="${c.ews_call_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="number" class="cutoff-input" data-field="ews_safe_percentile" value="${c.ews_safe_percentile ?? ''}" min="0" max="100" step="0.1"></td>
+      <td><input type="text" class="cutoff-input" data-field="notes" value="${c.notes ?? ''}" placeholder="–" style="min-width:100px"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCollege('${c.id}')">✕</button></td>
+    </tr>`).join('');
+}
+
+async function saveAllCutoffs() {
+  clearAlert('college-alert');
+  const rows = document.querySelectorAll('#college-edit-tbody tr');
+  const updates = [];
+  rows.forEach(row => {
+    const id = row.dataset.id;
+    const update = { id, updated_at: new Date().toISOString() };
+    row.querySelectorAll('.cutoff-input').forEach(input => {
+      const field = input.dataset.field;
+      const val = input.value.trim();
+      update[field] = field === 'notes' ? (val || null) : (val !== '' ? parseFloat(val) : null);
+    });
+    updates.push(update);
+  });
+  const { error } = await sb.from('college_profiles').upsert(updates);
+  if (error) return showAlert('college-alert', error.message, 'error');
+  showAlert('college-alert', `${updates.length} institutes updated successfully.`, 'success');
+}
+
+async function deleteCollege(id) {
+  if (!confirm('Remove this institute from the list?')) return;
+  await sb.from('college_profiles').delete().eq('id', id);
+  loadColleges();
+}
+
+async function addCollege() {
+  clearAlert('add-college-alert');
+  const name = document.getElementById('nc-name').value.trim();
+  const tier = document.getElementById('nc-tier').value;
+  if (!name) return showAlert('add-college-alert', 'Institute name is required.', 'error');
+  const { error } = await sb.from('college_profiles').insert({
+    name, tier,
+    general_call_percentile: parseFloat(document.getElementById('nc-gcall').value) || null,
+    general_safe_percentile: parseFloat(document.getElementById('nc-gsafe').value) || null,
+    obc_call_percentile: parseFloat(document.getElementById('nc-ocall').value) || null,
+    obc_safe_percentile: parseFloat(document.getElementById('nc-osafe').value) || null,
+    sc_call_percentile: parseFloat(document.getElementById('nc-sccall').value) || null,
+    sc_safe_percentile: parseFloat(document.getElementById('nc-scsafe').value) || null,
+    st_call_percentile: parseFloat(document.getElementById('nc-stcall').value) || null,
+    st_safe_percentile: parseFloat(document.getElementById('nc-stsafe').value) || null,
+    ews_call_percentile: parseFloat(document.getElementById('nc-ewscall').value) || null,
+    ews_safe_percentile: parseFloat(document.getElementById('nc-ewssafe').value) || null,
+    notes: document.getElementById('nc-notes').value.trim() || null,
+  });
+  if (error) return showAlert('add-college-alert', error.message, 'error');
+  closeModal('modal-add-college');
+  loadColleges();
+}
+
+// ── LOGOUT ──
+async function doLogout() {
+  await sb.auth.signOut();
+  location.href = 'index.html';
+}
+</script>
+</body>
+</html>
