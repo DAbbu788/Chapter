@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f7f7f5;
+  --surface:#ffffff;
+  --border:#e4e4e0;
+  --text:#1a1a18;
+  --muted:#6b6b67;
+  --accent:#1a1a18;
+  --accent-light:#f0f0ec;
+  --success:#1a7a4a;
+  --success-bg:#edf7f2;
+  --error:#c0392b;
+  --warn:#b8620a;
+  --warn-bg:#fef6ec;
+  --radius:10px;
+  --sidebar:220px;
+  --font-display:'DM Serif Display',Georgia,serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+}
+
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;background:var(--accent);
+  min-height:100vh;display:flex;flex-direction:column;
+  position:fixed;left:0;top:0;bottom:0;z-index:100;
+}
+.sidebar-brand{
+  padding:28px 24px 24px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.sidebar-brand-name{
+  font-family:var(--font-display);font-size:26px;color:#fff;letter-spacing:-0.5px;
+}
+.sidebar-brand-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px;font-weight:300}
+
+.nav{flex:1;padding:16px 0}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 24px;font-size:13.5px;font-weight:400;
+  color:rgba(255,255,255,0.55);cursor:pointer;
+  border-left:2px solid transparent;
+  transition:all 0.15s;
+}
+.nav-item:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.05)}
+.nav-item.active{color:#fff;border-left-color:#fff;background:rgba(255,255,255,0.07)}
+.nav-icon{width:16px;height:16px;opacity:0.7;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+
+.sidebar-footer{
+  padding:20px 24px;border-top:1px solid rgba(255,255,255,0.08);
+}
+.user-pill{display:flex;align-items:center;gap:10px}
+.user-avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:500;color:#fff;flex-shrink:0;
+}
+.user-name{font-size:12.5px;color:rgba(255,255,255,0.7);font-weight:400;line-height:1.3}
+.user-role{font-size:10px;color:rgba(255,255,255,0.3)}
+.logout-btn{
+  margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1);border-radius:6px;
+  color:rgba(255,255,255,0.5);font-size:12px;font-family:var(--font-body);
+  cursor:pointer;transition:all 0.15s;
+}
+.logout-btn:hover{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.8)}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.page-title{font-size:17px;font-weight:500}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.greeting{font-size:13px;color:var(--muted)}
+
+.content{padding:28px 32px;flex:1}
+
+/* ── SECTION PANELS ── */
+.section{display:none}
+.section.active{display:block}
+
+/* ── CARDS ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:24px;margin-bottom:20px;
+}
+.card-title{font-size:14px;font-weight:500;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.card-subtitle{font-size:12px;color:var(--muted);margin-top:2px;font-weight:400}
+
+/* ── FORM ELEMENTS ── */
+input,select,textarea{
+  font-family:var(--font-body);font-size:13.5px;color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);outline:none;width:100%;
+  transition:border-color 0.15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input,select{height:38px;padding:0 12px}
+textarea{padding:10px 12px;resize:vertical;min-height:80px}
+
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:500;color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+
+/* ── BUTTONS ── */
+.btn{
+  height:36px;padding:0 16px;border-radius:var(--radius);
+  font-family:var(--font-body);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all 0.15s;border:none;
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{opacity:0.85}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--text)}
+.btn-danger{background:none;border:1px solid #f5c6c0;color:var(--error)}
+.btn-danger:hover{background:#fdf0ef}
+.btn-sm{height:30px;padding:0 12px;font-size:12px}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* ── TAGS / BADGES ── */
+.badge{
+  display:inline-block;padding:2px 10px;border-radius:20px;
+  font-size:11px;font-weight:500;
+}
+.badge-green{background:var(--success-bg);color:var(--success)}
+.badge-gray{background:var(--accent-light);color:var(--muted)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+
+/* ── TIMETABLE ── */
+.day-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.day-tab{
+  padding:6px 14px;border-radius:20px;font-size:12.5px;
+  border:1px solid var(--border);cursor:pointer;background:var(--surface);
+  color:var(--muted);transition:all 0.15s;
+}
+.day-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.slot-list{display:flex;flex-direction:column;gap:8px;min-height:60px}
+.slot-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;background:var(--accent-light);
+  border-radius:8px;font-size:13.5px;
+}
+.slot-time{font-size:12px;color:var(--muted);min-width:110px;font-weight:500}
+.slot-subject{flex:1;font-weight:500}
+.slot-notes{font-size:12px;color:var(--muted);flex:1}
+
+/* ── TARGET BOARD ── */
+.task-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.task-col-title{
+  font-size:12px;font-weight:500;letter-spacing:0.06em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:12px;
+}
+.task-list{display:flex;flex-direction:column;gap:8px}
+.task-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border:1px solid var(--border);
+  border-radius:8px;background:var(--surface);
+}
+.task-item.done{opacity:0.5}
+.task-item.done .task-text{text-decoration:line-through;color:var(--muted)}
+.task-check{
+  width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border);
+  cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;background:var(--surface);
+}
+.task-check.checked{background:var(--accent);border-color:var(--accent)}
+.task-check.checked::after{content:'✓';font-size:11px;color:#fff;font-weight:500}
+.task-text{flex:1;font-size:13.5px}
+.task-del{
+  background:none;border:none;cursor:pointer;
+  color:var(--muted);font-size:16px;padding:0 2px;
+  opacity:0;transition:opacity 0.15s;
+}
+.task-item:hover .task-del{opacity:1}
+
+/* ── MOCK TRACKER ── */
+.mock-list{display:flex;flex-direction:column;gap:10px}
+.mock-card{
+  border:1px solid var(--border);border-radius:10px;
+  padding:16px;background:var(--surface);
+}
+.mock-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mock-platform{font-weight:500;font-size:14px}
+.mock-date{font-size:12px;color:var(--muted)}
+.mock-scores{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.score-box{
+  background:var(--accent-light);border-radius:8px;
+  padding:10px;text-align:center;
+}
+.score-label{font-size:10px;color:var(--muted);font-weight:500;letter-spacing:0.04em;text-transform:uppercase}
+.score-val{font-size:20px;font-weight:500;margin-top:2px}
+.score-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.mock-notes{margin-top:10px;font-size:12.5px;color:var(--muted);font-style:italic}
+
+/* section score detail */
+.section-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.section-box{border:1px solid var(--border);border-radius:8px;padding:12px}
+.section-box-title{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:8px}
+.section-stat{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.section-stat span:last-child{font-weight:500}
+
+/* chart */
+.chart-wrap{position:relative;height:200px;margin-top:4px}
+
+/* ── COLLEGE PROFILES ── */
+.college-filter{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.filter-chip{
+  padding:6px 16px;border-radius:20px;font-size:13px;
+  border:1px solid var(--border);cursor:pointer;background:var(--surface);
+  color:var(--muted);transition:all 0.15s;
+}
+.filter-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.college-table{width:100%;border-collapse:collapse;font-size:13px}
+.college-table th{
+  text-align:left;padding:8px 12px;font-size:11px;font-weight:500;
+  color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;
+  border-bottom:1px solid var(--border);
+}
+.college-table td{padding:11px 12px;border-bottom:1px solid var(--border)}
+.college-table tr:last-child td{border-bottom:none}
+.college-table tr:hover td{background:var(--accent-light)}
+.pct-pill{
+  display:inline-block;padding:3px 10px;border-radius:12px;
+  font-size:12px;font-weight:500;
+}
+.pct-safe{background:#edf7f2;color:var(--success)}
+.pct-call{background:#fef6ec;color:var(--warn)}
+.pct-reach{background:#fdf0ef;color:var(--error)}
+
+.profile-banner{
+  background:var(--accent);color:#fff;border-radius:12px;
+  padding:20px 24px;margin-bottom:20px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.profile-banner-left h3{font-family:var(--font-display);font-size:20px;margin-bottom:4px}
+.profile-banner-left p{font-size:13px;color:rgba(255,255,255,0.6);font-weight:300}
+.profile-stats{display:flex;gap:24px}
+.p-stat{text-align:center}
+.p-stat-val{font-size:18px;font-weight:500}
+.p-stat-label{font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px}
+
+/* ── DOUBT FORUM ── */
+.doubt-list{display:flex;flex-direction:column;gap:12px}
+.doubt-card{
+  border:1px solid var(--border);border-radius:10px;
+  padding:16px;background:var(--surface);cursor:pointer;
+  transition:border-color 0.15s;
+}
+.doubt-card:hover{border-color:rgba(0,0,0,0.2)}
+.doubt-card.open{border-color:var(--accent)}
+.doubt-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.doubt-title{font-size:14px;font-weight:500}
+.doubt-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.doubt-body{margin-top:12px;font-size:13.5px;color:var(--muted);line-height:1.6;display:none}
+.doubt-card.open .doubt-body{display:block}
+.replies{margin-top:14px;display:none;border-top:1px solid var(--border);padding-top:14px}
+.doubt-card.open .replies{display:block}
+.reply-item{
+  padding:10px 12px;border-radius:8px;background:var(--accent-light);
+  margin-bottom:8px;font-size:13px;
+}
+.reply-author{font-weight:500;font-size:12px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.reply-text{color:var(--muted);line-height:1.5}
+.reply-form{margin-top:12px;display:flex;gap:8px}
+.reply-form textarea{min-height:60px;font-size:13px}
+
+/* ── ANNOUNCEMENTS ── */
+.announcement-list{display:flex;flex-direction:column;gap:10px}
+.announcement-item{
+  padding:14px 16px;border:1px solid var(--border);
+  border-left:3px solid var(--accent);border-radius:8px;background:var(--surface);
+}
+.announcement-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.announcement-body{font-size:13px;color:var(--muted);line-height:1.6}
+.announcement-link{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--accent);font-weight:500}
+.announcement-date{font-size:11px;color:var(--muted);margin-top:6px}
+
+/* ── FORUM TABS ── */
+.tab-btn{
+  padding:10px 18px;font-family:var(--font-body);font-size:13.5px;
+  font-weight:400;color:var(--muted);background:none;border:none;
+  border-bottom:2px solid transparent;cursor:pointer;
+  margin-bottom:-1px;transition:all 0.15s;
+}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+
+/* ── EMPTY STATE ── */
+.empty{
+  text-align:center;padding:40px 20px;color:var(--muted);
+}
+.empty-icon{font-size:32px;margin-bottom:10px;opacity:0.4}
+.empty-text{font-size:14px}
+
+/* ── MODAL ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.3);
+  display:none;align-items:center;justify-content:center;z-index:200;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--surface);border-radius:14px;
+  width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
+  padding:28px;box-shadow:0 8px 40px rgba(0,0,0,0.12);
+}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0}
+
+/* ── ALERT ── */
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:none}
+.alert.error{background:#fdf0ef;color:var(--error);border:1px solid #f5c6c0;display:block}
+.alert.success{background:var(--success-bg);color:var(--success);border:1px solid #b6e0c9;display:block}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.2s}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  .mock-scores{grid-template-columns:1fr 1fr}
+  .task-columns{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-name">Chapter</div>
+    <div class="sidebar-brand-sub">CAT Mentorship</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showSection('planner')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="1" y="3" width="14" height="11" rx="2"/><line x1="5" y1="1" x2="5" y2="5"/><line x1="11" y1="1" x2="11" y2="5"/><line x1="1" y1="7" x2="15" y2="7"/>
+      </svg>
+      Study Planner
+    </div>
+    <div class="nav-item" onclick="showSection('mocks')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M2 12 L5 8 L8 10 L11 5 L14 7"/><rect x="1" y="1" width="14" height="14" rx="2"/>
+      </svg>
+      Mock Tracker
+    </div>
+    <div class="nav-item" onclick="showSection('colleges')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M8 1L1 5v1h14V5L8 1z"/><rect x="2" y="7" width="3" height="6"/><rect x="6.5" y="7" width="3" height="6"/><rect x="11" y="7" width="3" height="6"/><line x1="1" y1="13" x2="15" y2="13"/>
+      </svg>
+      College Profiles
+    </div>
+    <div class="nav-item" onclick="showSection('doubts')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 10a2 2 0 01-2 2H5l-3 3V4a2 2 0 012-2h8a2 2 0 012 2v6z"/>
+      </svg>
+      Doubt Forum
+    </div>
+    <div class="nav-item" onclick="showSection('updates')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13 6A5 5 0 003 6c0 4-2 5-2 5h14s-2-1-2-5z"/><path d="M9.73 13a2 2 0 01-3.46 0"/>
+      </svg>
+      Updates
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div>
+        <div class="user-name" id="user-name-display">Loading…</div>
+        <div class="user-role">Student</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Sign out</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Study Planner</div>
+    <div class="topbar-right">
+      <span class="greeting" id="topbar-greeting"></span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════════════
+         SECTION 1: STUDY PLANNER
+    ═══════════════════════════════════════ -->
+    <div class="section active" id="section-planner">
+
+      <!-- Timetable -->
+      <div class="card">
+        <div class="card-title">
+          Daily timetable
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-slot')">+ Add slot</button>
+        </div>
+        <div class="day-tabs" id="day-tabs">
+          <div class="day-tab active" onclick="selectDay('Monday',this)">Mon</div>
+          <div class="day-tab" onclick="selectDay('Tuesday',this)">Tue</div>
+          <div class="day-tab" onclick="selectDay('Wednesday',this)">Wed</div>
+          <div class="day-tab" onclick="selectDay('Thursday',this)">Thu</div>
+          <div class="day-tab" onclick="selectDay('Friday',this)">Fri</div>
+          <div class="day-tab" onclick="selectDay('Saturday',this)">Sat</div>
+          <div class="day-tab" onclick="selectDay('Sunday',this)">Sun</div>
+        </div>
+        <div class="slot-list" id="slot-list">
+          <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">No slots for this day yet</div></div>
+        </div>
+      </div>
+
+      <!-- Target board -->
+      <div class="card">
+        <div class="card-title">
+          Target board
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-task')">+ Add task</button>
+        </div>
+        <div class="task-columns">
+          <div>
+            <div class="task-col-title">Daily targets</div>
+            <div class="task-list" id="daily-task-list"></div>
+          </div>
+          <div>
+            <div class="task-col-title">Weekly targets</div>
+            <div class="task-list" id="weekly-task-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 2: MOCK TRACKER
+    ═══════════════════════════════════════ -->
+    <div class="section" id="section-mocks">
+
+      <!-- Progress chart -->
+      <div class="card">
+        <div class="card-title">Percentile trend</div>
+        <div class="chart-wrap"><canvas id="mock-chart"></canvas></div>
+      </div>
+
+      <!-- Add mock button + list -->
+      <div class="card">
+        <div class="card-title">
+          Mock history
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-mock')">+ Add mock</button>
+        </div>
+        <div class="mock-list" id="mock-list">
+          <div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No mocks added yet. Add your first mock above.</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 3: COLLEGE PROFILES
+    ═══════════════════════════════════════ -->
+    <div class="section" id="section-colleges">
+
+      <div class="profile-banner" id="profile-banner">
+        <div class="profile-banner-left">
+          <h3>Your college shortlist</h3>
+          <p>Based on your category and academic profile</p>
+        </div>
+        <div class="profile-stats" id="profile-stats"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Institute cutoffs
+          <span style="font-size:12px;color:var(--muted);font-weight:400">Personalised to your category</span>
+        </div>
+        <div class="college-filter" id="college-filter">
+          <div class="filter-chip active" onclick="filterColleges('All',this)">All</div>
+          <div class="filter-chip" onclick="filterColleges('IIM ABC',this)">IIM A, B, C</div>
+          <div class="filter-chip" onclick="filterColleges('New IIMs',this)">New IIMs</div>
+          <div class="filter-chip" onclick="filterColleges('Non-IIM Top Schools',this)">Non-IIM Top</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="college-table">
+            <thead>
+              <tr>
+                <th>Institute</th>
+                <th>Tier</th>
+                <th>Call %ile</th>
+                <th>Safe conversion %ile</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="college-tbody"></tbody>
+          </table>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:14px">
+          * Cutoffs are indicative based on historical trends and your category. Updated by your mentor annually.
+          <strong>Status</strong> reflects your latest mock percentile vs call cutoff.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 4: DOUBT FORUM
+    ═══════════════════════════════════════ -->
+    <div class="section" id="section-doubts">
+      <div class="card">
+        <div class="card-title">Post a doubt</div>
+        <div id="doubt-alert" class="alert"></div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Subject tag</label>
+            <select id="doubt-tag">
+              <option value="QA">Quantitative Aptitude</option>
+              <option value="VARC">Verbal &amp; RC</option>
+              <option value="DILR">DI &amp; LR</option>
+              <option value="GD/PI">GD / PI</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Title</label>
+            <input type="text" id="doubt-title" placeholder="e.g. Confused about probability basics">
+          </div>
+        </div>
+        <div class="field">
+          <label>Describe your doubt</label>
+          <textarea id="doubt-body" placeholder="Write your question in detail…"></textarea>
+        </div>
+
+        <!-- Visibility toggle -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 14px;background:var(--accent-light);border-radius:var(--radius)">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500" id="visibility-label">Private — only your mentor can see this</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px" id="visibility-sub">Toggle to make it visible to all students</div>
+          </div>
+          <label style="position:relative;width:40px;height:22px;flex-shrink:0;cursor:pointer">
+            <input type="checkbox" id="doubt-public" onchange="updateVisibilityLabel()" style="opacity:0;width:100%;height:100%;position:absolute;margin:0;cursor:pointer">
+            <span id="toggle-track" style="position:absolute;inset:0;background:var(--border);border-radius:11px;transition:background 0.2s"></span>
+            <span id="toggle-thumb" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none"></span>
+          </label>
+        </div>
+
+        <button class="btn btn-primary" onclick="postDoubt()">Post doubt</button>
+      </div>
+
+      <!-- Forum tabs -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:0">
+          <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin:-24px -24px 20px;padding:0 24px">
+            <button class="tab-btn active" id="tab-my" onclick="switchDoubtTab('my')">My doubts</button>
+            <button class="tab-btn" id="tab-community" onclick="switchDoubtTab('community')">Community forum</button>
+          </div>
+        </div>
+
+        <!-- My doubts -->
+        <div id="doubts-my">
+          <div class="doubt-list" id="doubt-list">
+            <div class="empty"><div class="empty-icon">💬</div><div class="empty-text">No doubts posted yet</div></div>
+          </div>
+        </div>
+
+        <!-- Community doubts -->
+        <div id="doubts-community" style="display:none">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="community-filters">
+            <div class="filter-chip active" onclick="filterCommunity('All',this)">All</div>
+            <div class="filter-chip" onclick="filterCommunity('QA',this)">QA</div>
+            <div class="filter-chip" onclick="filterCommunity('VARC',this)">VARC</div>
+            <div class="filter-chip" onclick="filterCommunity('DILR',this)">DILR</div>
+            <div class="filter-chip" onclick="filterCommunity('GD/PI',this)">GD/PI</div>
+            <div class="filter-chip" onclick="filterCommunity('General',this)">General</div>
+          </div>
+          <div class="doubt-list" id="community-doubt-list">
+            <div class="empty"><div class="empty-icon">🌐</div><div class="empty-text">No public doubts yet. Be the first to post one!</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         SECTION 5: UPDATES (Announcements)
+    ═══════════════════════════════════════ -->
+    <div class="section" id="section-updates">
+      <div class="card">
+        <div class="card-title">Updates from your mentor</div>
+        <div class="announcement-list" id="announcement-list">
+          <div class="empty"><div class="empty-icon">📢</div><div class="empty-text">No updates posted yet</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- ═══════ MODALS ═══════ -->
+
+<!-- Add timetable slot -->
+<div class="modal-overlay" id="modal-slot">
+  <div class="modal">
+    <div class="modal-title">Add timetable slot <button class="modal-close" onclick="closeModal('modal-slot')">×</button></div>
+    <div id="slot-alert" class="alert"></div>
+    <div class="field"><label>Day</label>
+      <select id="slot-day">
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Start time</label><input type="time" id="slot-start"></div>
+      <div class="field"><label>End time</label><input type="time" id="slot-end"></div>
+    </div>
+    <div class="field"><label>Subject / activity</label><input type="text" id="slot-subject" placeholder="e.g. Quantitative Aptitude"></div>
+    <div class="field"><label>Notes (optional)</label><input type="text" id="slot-notes" placeholder="e.g. Focus on percentages"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveSlot()">Save slot</button>
+  </div>
+</div>
+
+<!-- Add task -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <div class="modal-title">Add task <button class="modal-close" onclick="closeModal('modal-task')">×</button></div>
+    <div id="task-alert" class="alert"></div>
+    <div class="field"><label>Task type</label>
+      <select id="task-type">
+        <option value="daily">Daily target</option>
+        <option value="weekly">Weekly target</option>
+      </select>
+    </div>
+    <div class="field"><label>Task</label><input type="text" id="task-title" placeholder="e.g. Solve 20 QA questions"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveTask()">Add task</button>
+  </div>
+</div>
+
+<!-- Add mock -->
+<div class="modal-overlay" id="modal-mock">
+  <div class="modal">
+    <div class="modal-title">Add mock test <button class="modal-close" onclick="closeModal('modal-mock')">×</button></div>
+    <div id="mock-alert" class="alert"></div>
+    <div class="grid-2">
+      <div class="field"><label>Platform</label><input type="text" id="mock-platform" placeholder="e.g. IMS, TIME, CL"></div>
+      <div class="field"><label>Date</label><input type="date" id="mock-date"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Overall score</label><input type="number" id="mock-overall-score" placeholder="e.g. 142"></div>
+      <div class="field"><label>Overall percentile</label><input type="number" id="mock-overall-pct" placeholder="e.g. 94.5" step="0.01"></div>
+    </div>
+    <div style="font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:14px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--border)">Section-wise breakdown</div>
+    <div class="grid-3">
+      <div style="font-size:12px;font-weight:500;color:var(--muted);text-align:center">QA</div>
+      <div style="font-size:12px;font-weight:500;color:var(--muted);text-align:center">VARC</div>
+      <div style="font-size:12px;font-weight:500;color:var(--muted);text-align:center">DILR</div>
+    </div>
+    <div class="grid-3" style="margin-top:6px">
+      <div class="field"><label>Score</label><input type="number" id="qa-score" placeholder="54"></div>
+      <div class="field"><label>Score</label><input type="number" id="varc-score" placeholder="52"></div>
+      <div class="field"><label>Score</label><input type="number" id="dilr-score" placeholder="36"></div>
+    </div>
+    <div class="grid-3">
+      <div class="field"><label>Attempted</label><input type="number" id="qa-att" placeholder="22"></div>
+      <div class="field"><label>Attempted</label><input type="number" id="varc-att" placeholder="20"></div>
+      <div class="field"><label>Attempted</label><input type="number" id="dilr-att" placeholder="14"></div>
+    </div>
+    <div class="grid-3">
+      <div class="field"><label>Correct</label><input type="number" id="qa-cor" placeholder="18"></div>
+      <div class="field"><label>Correct</label><input type="number" id="varc-cor" placeholder="17"></div>
+      <div class="field"><label>Correct</label><input type="number" id="dilr-cor" placeholder="12"></div>
+    </div>
+    <div class="grid-3">
+      <div class="field"><label>Incorrect</label><input type="number" id="qa-inc" placeholder="4"></div>
+      <div class="field"><label>Incorrect</label><input type="number" id="varc-inc" placeholder="3"></div>
+      <div class="field"><label>Incorrect</label><input type="number" id="dilr-inc" placeholder="2"></div>
+    </div>
+    <div class="field"><label>Notes / observations</label><textarea id="mock-notes" placeholder="What went well? What to improve?"></textarea></div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveMock()">Save mock</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  PASTE YOUR SUPABASE CREDENTIALS HERE
+// ════════════════════════════════════════════════
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ════════════════════════════════════════════════
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let USER = null;
+let STUDENT = null;
+let ALL_COLLEGES = [];
+let MOCK_CHART = null;
+let ACTIVE_DAY = 'Monday';
+
+// ── BOOT ──
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return location.href = 'index.html';
+  USER = session.user;
+
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', USER.id).single();
+  if (profile?.role === 'admin') return location.href = 'admin.html';
+  if (profile?.role === 'mentor') return location.href = 'mentor.html';
+
+  const name = profile?.full_name || USER.email;
+  document.getElementById('user-name-display').textContent = name;
+  document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('topbar-greeting').textContent = greet() + ', ' + name.split(' ')[0];
+
+  const { data: sd } = await sb.from('student_details').select('*').eq('id', USER.id).single();
+  STUDENT = sd;
+
+  loadSlots();
+  loadTasks();
+  loadColleges();
+  loadAnnouncements();
+})();
+
+function greet() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ── NAVIGATION ──
+const sectionTitles = {
+  planner:'Study Planner', mocks:'Mock Tracker',
+  colleges:'College Profiles', doubts:'Doubt Forum', updates:'Updates'
+};
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  document.getElementById('page-title').textContent = sectionTitles[name];
+  if (name === 'mocks') loadMocks();
+  if (name === 'doubts') loadDoubts();
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = 'alert ' + type;
+}
+function clearAlert(id) { document.getElementById(id).className = 'alert'; }
+
+// ══════════════════════════════════
+//  STUDY PLANNER
+// ══════════════════════════════════
+
+async function loadSlots() {
+  const { data } = await sb.from('timetable_slots')
+    .select('*').eq('student_id', USER.id).eq('day_of_week', ACTIVE_DAY)
+    .order('start_time');
+  renderSlots(data || []);
+}
+
+function renderSlots(slots) {
+  const el = document.getElementById('slot-list');
+  if (!slots.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">No slots for this day</div></div>';
+    return;
+  }
+  el.innerHTML = slots.map(s => `
+    <div class="slot-item">
+      <span class="slot-time">${fmt(s.start_time)} – ${fmt(s.end_time)}</span>
+      <span class="slot-subject">${s.subject}</span>
+      ${s.notes ? `<span class="slot-notes">${s.notes}</span>` : ''}
+      <button class="btn btn-danger btn-sm" onclick="deleteSlot('${s.id}')">✕</button>
+    </div>`).join('');
+}
+
+function fmt(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hh = parseInt(h);
+  return `${hh > 12 ? hh - 12 : hh || 12}:${m} ${hh >= 12 ? 'PM' : 'AM'}`;
+}
+
+function selectDay(day, el) {
+  ACTIVE_DAY = day;
+  document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  loadSlots();
+}
+
+async function saveSlot() {
+  clearAlert('slot-alert');
+  const day = document.getElementById('slot-day').value;
+  const start = document.getElementById('slot-start').value;
+  const end = document.getElementById('slot-end').value;
+  const subject = document.getElementById('slot-subject').value.trim();
+  if (!start || !end || !subject) return showAlert('slot-alert', 'Please fill day, times and subject.', 'error');
+  if (start >= end) return showAlert('slot-alert', 'End time must be after start time.', 'error');
+
+  const { error } = await sb.from('timetable_slots').insert({
+    student_id: USER.id, day_of_week: day,
+    start_time: start, end_time: end,
+    subject, notes: document.getElementById('slot-notes').value.trim()
+  });
+  if (error) return showAlert('slot-alert', error.message, 'error');
+  closeModal('modal-slot');
+  // reset
+  ['slot-start','slot-end','slot-subject','slot-notes'].forEach(id => document.getElementById(id).value = '');
+  if (ACTIVE_DAY === day) loadSlots();
+}
+
+async function deleteSlot(id) {
+  await sb.from('timetable_slots').delete().eq('id', id);
+  loadSlots();
+}
+
+// ── TASKS ──
+async function loadTasks() {
+  const { data } = await sb.from('tasks').select('*').eq('student_id', USER.id).order('created_at');
+  const daily = (data || []).filter(t => t.task_type === 'daily');
+  const weekly = (data || []).filter(t => t.task_type === 'weekly');
+  renderTasks('daily-task-list', daily);
+  renderTasks('weekly-task-list', weekly);
+}
+
+function renderTasks(elId, tasks) {
+  const el = document.getElementById(elId);
+  if (!tasks.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">No tasks yet</div>';
+    return;
+  }
+  el.innerHTML = tasks.map(t => `
+    <div class="task-item ${t.is_done ? 'done' : ''}">
+      <div class="task-check ${t.is_done ? 'checked' : ''}" onclick="toggleTask('${t.id}', ${!t.is_done})"></div>
+      <span class="task-text">${t.title}</span>
+      <button class="task-del" onclick="deleteTask('${t.id}')">×</button>
+    </div>`).join('');
+}
+
+async function saveTask() {
+  clearAlert('task-alert');
+  const title = document.getElementById('task-title').value.trim();
+  const type = document.getElementById('task-type').value;
+  if (!title) return showAlert('task-alert', 'Please enter a task.', 'error');
+  const { error } = await sb.from('tasks').insert({ student_id: USER.id, task_type: type, title });
+  if (error) return showAlert('task-alert', error.message, 'error');
+  document.getElementById('task-title').value = '';
+  closeModal('modal-task');
+  loadTasks();
+}
+
+async function toggleTask(id, done) {
+  await sb.from('tasks').update({ is_done: done }).eq('id', id);
+  loadTasks();
+}
+
+async function deleteTask(id) {
+  await sb.from('tasks').delete().eq('id', id);
+  loadTasks();
+}
+
+// ══════════════════════════════════
+//  MOCK TRACKER
+// ══════════════════════════════════
+
+async function loadMocks() {
+  const { data } = await sb.from('mock_scores').select('*')
+    .eq('student_id', USER.id).order('test_date');
+  renderMocks(data || []);
+  renderChart(data || []);
+}
+
+function renderMocks(mocks) {
+  const el = document.getElementById('mock-list');
+  if (!mocks.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No mocks added yet</div></div>';
+    return;
+  }
+  el.innerHTML = [...mocks].reverse().map(m => `
+    <div class="mock-card">
+      <div class="mock-header">
+        <div>
+          <div class="mock-platform">${m.platform_name || 'Mock test'}</div>
+          <div class="mock-date">${m.test_date ? new Date(m.test_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : ''}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteMock('${m.id}')">Delete</button>
+      </div>
+      <div class="mock-scores">
+        <div class="score-box"><div class="score-label">Overall</div><div class="score-val">${m.overall_percentile ?? '–'}%ile</div><div class="score-sub">Score: ${m.overall_score ?? '–'}</div></div>
+        <div class="score-box"><div class="score-label">QA</div><div class="score-val">${m.qa_score ?? '–'}</div><div class="score-sub">${m.qa_correct ?? 0}C / ${m.qa_incorrect ?? 0}W / ${m.qa_attempted ?? 0}A</div></div>
+        <div class="score-box"><div class="score-label">VARC</div><div class="score-val">${m.varc_score ?? '–'}</div><div class="score-sub">${m.varc_correct ?? 0}C / ${m.varc_incorrect ?? 0}W / ${m.varc_attempted ?? 0}A</div></div>
+        <div class="score-box"><div class="score-label">DILR</div><div class="score-val">${m.dilr_score ?? '–'}</div><div class="score-sub">${m.dilr_correct ?? 0}C / ${m.dilr_incorrect ?? 0}W / ${m.dilr_attempted ?? 0}A</div></div>
+      </div>
+      ${m.notes ? `<div class="mock-notes">"${m.notes}"</div>` : ''}
+    </div>`).join('');
+}
+
+function renderChart(mocks) {
+  const ctx = document.getElementById('mock-chart').getContext('2d');
+  if (MOCK_CHART) MOCK_CHART.destroy();
+  if (!mocks.length) return;
+  MOCK_CHART = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: mocks.map(m => m.test_date ? new Date(m.test_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : 'N/A'),
+      datasets: [{
+        label: 'Overall %ile',
+        data: mocks.map(m => m.overall_percentile),
+        borderColor: '#1a1a18', backgroundColor: 'rgba(26,26,24,0.05)',
+        tension: 0.3, pointRadius: 4, pointBackgroundColor: '#1a1a18', fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, grid: { color: '#f0f0ec' }, ticks: { font: { family: 'DM Sans', size: 11 } } },
+        x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 11 } } }
+      }
+    }
+  });
+}
+
+async function saveMock() {
+  clearAlert('mock-alert');
+  const platform = document.getElementById('mock-platform').value.trim();
+  const date = document.getElementById('mock-date').value;
+  const opct = document.getElementById('mock-overall-pct').value;
+  if (!platform || !date || !opct) return showAlert('mock-alert', 'Platform, date and overall percentile are required.', 'error');
+
+  const { error } = await sb.from('mock_scores').insert({
+    student_id: USER.id,
+    platform_name: platform,
+    test_date: date,
+    overall_score: document.getElementById('mock-overall-score').value || null,
+    overall_percentile: parseFloat(opct),
+    qa_score: document.getElementById('qa-score').value || null,
+    qa_attempted: document.getElementById('qa-att').value || null,
+    qa_correct: document.getElementById('qa-cor').value || null,
+    qa_incorrect: document.getElementById('qa-inc').value || null,
+    varc_score: document.getElementById('varc-score').value || null,
+    varc_attempted: document.getElementById('varc-att').value || null,
+    varc_correct: document.getElementById('varc-cor').value || null,
+    varc_incorrect: document.getElementById('varc-inc').value || null,
+    dilr_score: document.getElementById('dilr-score').value || null,
+    dilr_attempted: document.getElementById('dilr-att').value || null,
+    dilr_correct: document.getElementById('dilr-cor').value || null,
+    dilr_incorrect: document.getElementById('dilr-inc').value || null,
+    notes: document.getElementById('mock-notes').value.trim() || null,
+  });
+  if (error) return showAlert('mock-alert', error.message, 'error');
+  closeModal('modal-mock');
+  loadMocks();
+}
+
+async function deleteMock(id) {
+  if (!confirm('Delete this mock entry?')) return;
+  await sb.from('mock_scores').delete().eq('id', id);
+  loadMocks();
+}
+
+// ══════════════════════════════════
+//  COLLEGE PROFILES
+// ══════════════════════════════════
+
+let latestPercentile = null;
+
+async function loadColleges() {
+  const { data } = await sb.from('college_profiles').select('*').order('tier').order('name');
+  ALL_COLLEGES = data || [];
+
+  // get latest mock percentile
+  const { data: mocks } = await sb.from('mock_scores').select('overall_percentile,test_date')
+    .eq('student_id', USER.id).order('test_date', { ascending: false }).limit(1);
+  latestPercentile = mocks?.[0]?.overall_percentile ?? null;
+
+  const category = STUDENT?.category || 'General';
+  const tier = STUDENT?.target_tier || 'All';
+
+  // Banner stats
+  const cat_col = category.toLowerCase().replace(' ','_');
+  const callField = cat_col + '_call_percentile';
+  const safeField = cat_col + '_safe_percentile';
+  const reachable = ALL_COLLEGES.filter(c => latestPercentile !== null && latestPercentile >= c[callField]).length;
+  document.getElementById('profile-banner').querySelector('p').textContent =
+    `Category: ${category} · Target: ${tier}`;
+  document.getElementById('profile-stats').innerHTML = `
+    <div class="p-stat"><div class="p-stat-val">${ALL_COLLEGES.length}</div><div class="p-stat-label">Institutes listed</div></div>
+    ${latestPercentile !== null ? `<div class="p-stat"><div class="p-stat-val">${latestPercentile}%ile</div><div class="p-stat-label">Latest mock</div></div>
+    <div class="p-stat"><div class="p-stat-val">${reachable}</div><div class="p-stat-label">Within call range</div></div>` : ''}
+  `;
+
+  renderColleges('All');
+}
+
+function filterColleges(tier, el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderColleges(tier);
+}
+
+function renderColleges(filterTier) {
+  const category = STUDENT?.category || 'General';
+  const cat_col = category.toLowerCase().replace(/-/g,'').replace(/ /g,'_');
+  const callField = cat_col + '_call_percentile';
+  const safeField = cat_col + '_safe_percentile';
+
+  const filtered = filterTier === 'All' ? ALL_COLLEGES : ALL_COLLEGES.filter(c => c.tier === filterTier);
+  const tbody = document.getElementById('college-tbody');
+
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No data</td></tr>'; return; }
+
+  tbody.innerHTML = filtered.map(c => {
+    const call = c[callField];
+    const safe = c[safeField];
+    let status = '<span class="badge badge-gray">No mock data</span>';
+    if (latestPercentile !== null) {
+      if (latestPercentile >= safe) status = '<span class="badge badge-green">Strong chance</span>';
+      else if (latestPercentile >= call) status = '<span class="badge badge-warn">Within call range</span>';
+      else status = '<span class="badge" style="background:#fdf0ef;color:var(--error)">Below call cutoff</span>';
+    }
+    return `<tr>
+      <td style="font-weight:500">${c.name}</td>
+      <td><span class="badge badge-gray">${c.tier}</span></td>
+      <td><span class="pct-pill pct-call">${call ?? '–'}+</span></td>
+      <td><span class="pct-pill pct-safe">${safe ?? '–'}+</span></td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════
+//  DOUBT FORUM
+// ══════════════════════════════════
+
+let ALL_PUBLIC_DOUBTS = [];
+let communityFilter = 'All';
+
+function updateVisibilityLabel() {
+  const isPublic = document.getElementById('doubt-public').checked;
+  const track = document.getElementById('toggle-track');
+  const thumb = document.getElementById('toggle-thumb');
+  document.getElementById('visibility-label').textContent = isPublic
+    ? 'Public — all students can see this'
+    : 'Private — only your mentor can see this';
+  document.getElementById('visibility-sub').textContent = isPublic
+    ? 'Your classmates can also reply and help'
+    : 'Toggle to make it visible to all students';
+  track.style.background = isPublic ? 'var(--accent)' : 'var(--border)';
+  thumb.style.transform = isPublic ? 'translateX(18px)' : 'translateX(0)';
+}
+
+function switchDoubtTab(tab) {
+  const isMyTab = tab === 'my';
+  document.getElementById('doubts-my').style.display = isMyTab ? 'block' : 'none';
+  document.getElementById('doubts-community').style.display = isMyTab ? 'none' : 'block';
+  document.getElementById('tab-my').classList.toggle('active', isMyTab);
+  document.getElementById('tab-community').classList.toggle('active', !isMyTab);
+  if (!isMyTab) loadCommunityDoubts();
+}
+
+async function loadDoubts() {
+  const { data } = await sb.from('doubts')
+    .select('*, doubt_replies(*, profiles(full_name, role))')
+    .eq('student_id', USER.id)
+    .order('created_at', { ascending: false });
+  renderDoubts('doubt-list', data || [], false);
+}
+
+async function loadCommunityDoubts() {
+  const { data } = await sb.from('doubts')
+    .select('*, profiles(full_name), doubt_replies(*, profiles(full_name, role))')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false });
+  ALL_PUBLIC_DOUBTS = data || [];
+  applyCommFilter();
+}
+
+function filterCommunity(tag, el) {
+  communityFilter = tag;
+  document.querySelectorAll('#community-filters .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  applyCommFilter();
+}
+
+function applyCommFilter() {
+  const filtered = communityFilter === 'All'
+    ? ALL_PUBLIC_DOUBTS
+    : ALL_PUBLIC_DOUBTS.filter(d => d.subject_tag === communityFilter);
+  renderDoubts('community-doubt-list', filtered, true);
+}
+
+function renderDoubts(elId, doubts, showAuthor) {
+  const el = document.getElementById(elId);
+  if (!doubts.length) {
+    el.innerHTML = elId === 'doubt-list'
+      ? '<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">No doubts posted yet</div></div>'
+      : '<div class="empty"><div class="empty-icon">🌐</div><div class="empty-text">No public doubts in this category yet</div></div>';
+    return;
+  }
+  el.innerHTML = doubts.map(d => `
+    <div class="doubt-card" id="dc-${d.id}-${elId}" onclick="toggleDoubt('${d.id}','${elId}')">
+      <div class="doubt-header">
+        <div>
+          <div class="doubt-title">${d.title}</div>
+          <div class="doubt-meta">
+            <span class="badge badge-gray">${d.subject_tag}</span>
+            ${showAuthor && d.profiles?.full_name ? `&nbsp;<span style="font-size:12px">by <strong>${d.profiles.full_name}</strong></span>` : ''}
+            &nbsp;· ${new Date(d.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
+            &nbsp;· ${d.doubt_replies?.length || 0} repl${d.doubt_replies?.length === 1 ? 'y' : 'ies'}
+            ${d.is_public
+              ? '&nbsp;<span class="badge badge-gray" style="font-size:10px">Public</span>'
+              : '&nbsp;<span class="badge badge-warn" style="font-size:10px">Private</span>'}
+          </div>
+        </div>
+        ${d.is_resolved ? '<span class="badge badge-green">Resolved</span>' : '<span class="badge badge-warn">Open</span>'}
+      </div>
+      <div class="doubt-body">${d.body || ''}</div>
+      <div class="replies">
+        ${(d.doubt_replies || []).map(r => `
+          <div class="reply-item">
+            <div class="reply-author">
+              ${r.profiles?.full_name || 'User'}
+              ${r.profiles?.role === 'mentor' || r.profiles?.role === 'admin' ? '<span class="badge badge-green">Mentor</span>' : ''}
+            </div>
+            <div class="reply-text">${r.body}</div>
+          </div>`).join('')}
+        <div class="reply-form" onclick="event.stopPropagation()">
+          <textarea id="reply-${d.id}-${elId}" placeholder="Add a reply…"></textarea>
+          <button class="btn btn-outline btn-sm" onclick="postReply('${d.id}','${elId}')">Send</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleDoubt(id, elId) {
+  document.getElementById(`dc-${id}-${elId}`)?.classList.toggle('open');
+}
+
+async function postDoubt() {
+  clearAlert('doubt-alert');
+  const title = document.getElementById('doubt-title').value.trim();
+  const body = document.getElementById('doubt-body').value.trim();
+  const tag = document.getElementById('doubt-tag').value;
+  const isPublic = document.getElementById('doubt-public').checked;
+  if (!title) return showAlert('doubt-alert', 'Please enter a title for your doubt.', 'error');
+  const { error } = await sb.from('doubts').insert({
+    student_id: USER.id, title, body, subject_tag: tag, is_public: isPublic
+  });
+  if (error) return showAlert('doubt-alert', error.message, 'error');
+  document.getElementById('doubt-title').value = '';
+  document.getElementById('doubt-body').value = '';
+  document.getElementById('doubt-public').checked = false;
+  updateVisibilityLabel();
+  showAlert('doubt-alert', isPublic
+    ? 'Doubt posted publicly! Your mentor and classmates can reply.'
+    : 'Doubt posted privately. Your mentor will reply soon.', 'success');
+  loadDoubts();
+}
+
+async function postReply(doubtId, elId) {
+  const ta = document.getElementById(`reply-${doubtId}-${elId}`);
+  const body = ta?.value.trim();
+  if (!body) return;
+  await sb.from('doubt_replies').insert({ doubt_id: doubtId, author_id: USER.id, body });
+  ta.value = '';
+  loadDoubts();
+  if (elId === 'community-doubt-list') loadCommunityDoubts();
+}
+
+// ══════════════════════════════════
+//  ANNOUNCEMENTS
+// ══════════════════════════════════
+
+async function loadAnnouncements() {
+  const { data } = await sb.from('announcements').select('*').order('created_at', { ascending: false });
+  const el = document.getElementById('announcement-list');
+  if (!data?.length) return;
+  el.innerHTML = data.map(a => `
+    <div class="announcement-item">
+      ${a.title ? `<div class="announcement-title">${a.title}</div>` : ''}
+      ${a.body ? `<div class="announcement-body">${a.body}</div>` : ''}
+      ${a.link ? `<a class="announcement-link" href="${a.link}" target="_blank">View resource →</a>` : ''}
+      <div class="announcement-date">${new Date(a.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div>
+    </div>`).join('');
+}
+
+// ── LOGOUT ──
+async function doLogout() {
+  await sb.auth.signOut();
+  location.href = 'index.html';
+}
+</script>
+</body>
+</html>
