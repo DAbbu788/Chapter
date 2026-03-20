@@ -721,7 +721,12 @@ let ACTIVE_DAY = 'Monday';
   if (!session) return location.href = 'index.html';
   USER = session.user;
 
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', USER.id).single();
+  let profile = null;
+  for (let i = 0; i < 3; i++) {
+    const { data } = await sb.from('profiles').select('*').eq('id', USER.id).single();
+    if (data?.role) { profile = data; break; }
+    await new Promise(r => setTimeout(r, 400));
+  }
   if (profile?.role === 'admin') return location.href = 'admin.html';
   if (profile?.role === 'mentor') return location.href = 'mentor.html';
 
