@@ -442,7 +442,24 @@ textarea{padding:10px 12px;resize:vertical;min-height:80px}
   </div>
 
   <div class="detail-section">
-    <div class="detail-section-title">Study tasks</div>
+    <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between">
+      Study tasks
+      <button class="btn btn-primary btn-sm" onclick="toggleAddTaskForm()">+ Add task</button>
+    </div>
+    <div id="drawer-task-form" style="display:none;margin-bottom:14px;padding:14px;background:var(--accent-light);border-radius:var(--radius)">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <select id="admin-task-type" style="width:140px;height:34px;font-size:13px">
+          <option value="daily">Daily target</option>
+          <option value="weekly">Weekly target</option>
+        </select>
+        <input type="text" id="admin-task-title" placeholder="e.g. Solve 20 QA questions" style="height:34px;font-size:13px">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="adminAddTask()">Add task</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddTaskForm()">Cancel</button>
+      </div>
+      <div id="admin-task-alert" class="alert" style="margin-top:8px"></div>
+    </div>
     <div id="drawer-tasks"></div>
   </div>
 </div>
@@ -696,20 +713,7 @@ async function openDrawer(uid) {
   }
 
   // Tasks
-  const { data: tasks } = await sb.from('tasks').select('*').eq('student_id', uid).order('created_at');
-  const tasksEl = document.getElementById('drawer-tasks');
-  if (!tasks?.length) {
-    tasksEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">No tasks added yet</div>';
-  } else {
-    const daily = tasks.filter(t => t.task_type === 'daily');
-    const weekly = tasks.filter(t => t.task_type === 'weekly');
-    tasksEl.innerHTML = `
-      <div style="font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px">Daily (${daily.filter(t=>t.is_done).length}/${daily.length} done)</div>
-      ${daily.map(t => `<div style="font-size:13px;padding:4px 0;${t.is_done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.is_done ? '✓' : '○'} ${t.title}</div>`).join('')}
-      <div style="font-size:12px;font-weight:500;color:var(--muted);margin:10px 0 6px">Weekly (${weekly.filter(t=>t.is_done).length}/${weekly.length} done)</div>
-      ${weekly.map(t => `<div style="font-size:13px;padding:4px 0;${t.is_done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.is_done ? '✓' : '○'} ${t.title}</div>`).join('')}
-    `;
-  }
+  await renderAdminTasks(uid);
 
   document.getElementById('drawer-overlay').classList.add('open');
   document.getElementById('student-drawer').classList.add('open');
@@ -998,6 +1002,81 @@ async function addCollege() {
   if (error) return showAlert('add-college-alert', error.message, 'error');
   closeModal('modal-add-college');
   loadColleges();
+}
+
+// ══════════════════════════════════
+//  ADMIN TASK MANAGEMENT
+// ══════════════════════════════════
+
+async function renderAdminTasks(uid) {
+  const { data: tasks } = await sb.from('tasks').select('*').eq('student_id', uid).order('created_at');
+  const tasksEl = document.getElementById('drawer-tasks');
+  if (!tasks?.length) {
+    tasksEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">No tasks added yet. Use the button above to add tasks for this student.</div>';
+    return;
+  }
+  const daily = tasks.filter(t => t.task_type === 'daily');
+  const weekly = tasks.filter(t => t.task_type === 'weekly');
+
+  const renderList = (list) => list.map(t => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+      <span style="font-size:13px;flex:1;${t.is_done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.is_done ? '✓' : '○'} ${t.title}</span>
+      <button onclick="adminDeleteTask('${t.id}','')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 2px;line-height:1" title="Delete task">×</button>
+    </div>`).join('');
+
+  tasksEl.innerHTML = `
+    ${daily.length ? `<div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Daily targets (${daily.filter(t=>t.is_done).length}/${daily.length} done)</div>
+    ${renderList(daily)}` : ''}
+    ${weekly.length ? `<div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:${daily.length?'12px':0} 0 8px">Weekly targets (${weekly.filter(t=>t.is_done).length}/${weekly.length} done)</div>
+    ${renderList(weekly)}` : ''}
+  `;
+}
+
+function toggleAddTaskForm() {
+  const form = document.getElementById('drawer-task-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') {
+    document.getElementById('admin-task-title').focus();
+  }
+}
+
+async function adminAddTask() {
+  const title = document.getElementById('admin-task-title').value.trim();
+  const type = document.getElementById('admin-task-type').value;
+  const alertEl = document.getElementById('admin-task-alert');
+  alertEl.className = 'alert';
+
+  if (!title) {
+    alertEl.textContent = 'Please enter a task title.';
+    alertEl.className = 'alert error';
+    return;
+  }
+  if (!CURRENT_DRAWER_UID) return;
+
+  const { error } = await sb.from('tasks').insert({
+    student_id: CURRENT_DRAWER_UID,
+    task_type: type,
+    title,
+    is_done: false
+  });
+
+  if (error) {
+    alertEl.textContent = error.message;
+    alertEl.className = 'alert error';
+    return;
+  }
+
+  document.getElementById('admin-task-title').value = '';
+  alertEl.textContent = 'Task added successfully.';
+  alertEl.className = 'alert success';
+  setTimeout(() => { alertEl.className = 'alert'; }, 2000);
+  await renderAdminTasks(CURRENT_DRAWER_UID);
+}
+
+async function adminDeleteTask(taskId, uid) {
+  if (!confirm('Delete this task?')) return;
+  await sb.from('tasks').delete().eq('id', taskId);
+  await renderAdminTasks(uid);
 }
 
 // ── LOGOUT ──
