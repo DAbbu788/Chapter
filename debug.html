@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chapter — Debug</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family:sans-serif;padding:30px;background:#f7f7f5">
+<h2>Chapter — Login Debug</h2>
+<div id="output" style="margin-top:20px;padding:16px;background:#fff;border:1px solid #e4e4e0;border-radius:8px;font-size:14px;line-height:2"></div>
+
+<script>
+const { createClient } = supabase;
+const sb = createClient(
+  'https://jcdnuzfycuqxxuukxyss.supabase.co',
+  'sb_publishable_FKY1rNd_vLlv2kGle5Bo4Q_uEoedYkt'
+);
+
+const out = document.getElementById('output');
+function log(msg, color) {
+  out.innerHTML += `<div style="color:${color||'#1a1a18'}">${msg}</div>`;
+}
+
+(async () => {
+  log('Step 1: Checking current session...');
+  const { data: { session }, error: se } = await sb.auth.getSession();
+
+  if (!session) {
+    log('❌ No active session found. Please log in first on index.html, then come back to this page.', '#c0392b');
+    return;
+  }
+
+  log(`✅ Session found. User ID: <strong>${session.user.id}</strong>`, '#1a7a4a');
+  log(`✅ Email: <strong>${session.user.email}</strong>`, '#1a7a4a');
+
+  log('<br>Step 2: Querying profiles table...');
+  const { data: profile, error: pe } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+
+  if (pe) {
+    log(`❌ Error fetching profile: ${pe.message}`, '#c0392b');
+    log(`Error code: ${pe.code}`, '#c0392b');
+  } else if (!profile) {
+    log('❌ Profile row returned null — row may not exist', '#c0392b');
+  } else {
+    log(`✅ Profile found:`, '#1a7a4a');
+    log(`&nbsp;&nbsp;role = <strong>${profile.role}</strong>`);
+    log(`&nbsp;&nbsp;full_name = <strong>${profile.full_name}</strong>`);
+    log(`&nbsp;&nbsp;id = <strong>${profile.id}</strong>`);
+  }
+
+  log('<br>Step 3: What redirect would happen...');
+  const role = profile?.role || 'student';
+  if (role === 'admin') log('→ Would redirect to <strong>admin.html</strong>', '#1a5fa5');
+  else if (role === 'mentor') log('→ Would redirect to <strong>mentor.html</strong>', '#1a5fa5');
+  else log('→ Would redirect to <strong>dashboard.html</strong> (student)', '#b8620a');
+})();
+</script>
+</body>
+</html>
