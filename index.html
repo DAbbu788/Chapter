@@ -513,8 +513,12 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 })();
 
 async function redirectByRole(uid) {
-  const { data } = await sb.from('profiles').select('role').eq('id', uid).single();
-  const role = data?.role || 'student';
+  let role = 'student';
+  for (let i = 0; i < 3; i++) {
+    const { data } = await sb.from('profiles').select('role').eq('id', uid).single();
+    if (data?.role) { role = data.role; break; }
+    await new Promise(r => setTimeout(r, 400));
+  }
   if (role === 'admin') location.href = 'admin.html';
   else if (role === 'mentor') location.href = 'mentor.html';
   else location.href = 'dashboard.html';
