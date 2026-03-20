@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter — Mentor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f7f7f5;
+  --surface:#ffffff;
+  --border:#e4e4e0;
+  --text:#1a1a18;
+  --muted:#6b6b67;
+  --accent:#1a1a18;
+  --accent-light:#f0f0ec;
+  --success:#1a7a4a;
+  --success-bg:#edf7f2;
+  --error:#c0392b;
+  --warn:#b8620a;
+  --warn-bg:#fef6ec;
+  --radius:10px;
+  --sidebar:220px;
+  --font-display:'DM Serif Display',Georgia,serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+}
+
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;background:var(--accent);
+  min-height:100vh;display:flex;flex-direction:column;
+  position:fixed;left:0;top:0;bottom:0;z-index:100;
+}
+.sidebar-brand{padding:28px 24px 24px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.sidebar-brand-name{font-family:var(--font-display);font-size:26px;color:#fff;letter-spacing:-0.5px}
+.sidebar-brand-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px;font-weight:300}
+.mentor-badge{
+  display:inline-block;margin-top:6px;padding:2px 8px;
+  background:rgba(255,255,255,0.12);border-radius:4px;
+  font-size:10px;color:rgba(255,255,255,0.6);font-weight:500;
+  letter-spacing:0.05em;text-transform:uppercase;
+}
+
+.nav{flex:1;padding:16px 0}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:11px 24px;
+  font-size:13.5px;font-weight:400;color:rgba(255,255,255,0.55);
+  cursor:pointer;border-left:2px solid transparent;transition:all 0.15s;
+}
+.nav-item:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.05)}
+.nav-item.active{color:#fff;border-left-color:#fff;background:rgba(255,255,255,0.07)}
+.nav-icon{width:16px;height:16px;opacity:0.7;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.nav-count{
+  margin-left:auto;background:rgba(255,255,255,0.15);
+  border-radius:10px;padding:1px 7px;font-size:10px;color:rgba(255,255,255,0.7);
+}
+
+.sidebar-footer{padding:20px 24px;border-top:1px solid rgba(255,255,255,0.08)}
+.user-pill{display:flex;align-items:center;gap:10px}
+.user-avatar{
+  width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:500;color:#fff;flex-shrink:0;
+}
+.user-name{font-size:12.5px;color:rgba(255,255,255,0.7);font-weight:400}
+.user-role{font-size:10px;color:rgba(255,255,255,0.3)}
+.logout-btn{
+  margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1);border-radius:6px;
+  color:rgba(255,255,255,0.5);font-size:12px;font-family:var(--font-body);
+  cursor:pointer;transition:all 0.15s;
+}
+.logout-btn:hover{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.8)}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.page-title{font-size:17px;font-weight:500}
+.content{padding:28px 32px;flex:1}
+
+/* ── SECTIONS ── */
+.section{display:none}
+.section.active{display:block}
+
+/* ── STAT CARDS ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.stat-val{font-size:28px;font-weight:500;line-height:1}
+.stat-label{font-size:12px;color:var(--muted);margin-top:6px}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
+.card-title{font-size:14px;font-weight:500;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* ── STUDENT CARDS ── */
+.student-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.student-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:20px;cursor:pointer;transition:all 0.15s;
+}
+.student-card:hover{border-color:rgba(0,0,0,0.2);box-shadow:0 2px 12px rgba(0,0,0,0.06)}
+.student-card-name{font-size:15px;font-weight:500;margin-bottom:4px}
+.student-card-meta{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.student-card-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.sc-stat{background:var(--accent-light);border-radius:7px;padding:8px;text-align:center}
+.sc-stat-val{font-size:16px;font-weight:500}
+.sc-stat-label{font-size:10px;color:var(--muted);margin-top:2px}
+.progress-bar-wrap{margin-top:12px}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+.data-table td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--accent-light)}
+
+/* ── FORM ELEMENTS ── */
+input,select,textarea{
+  font-family:var(--font-body);font-size:13.5px;color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);outline:none;width:100%;transition:border-color 0.15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input,select{height:38px;padding:0 12px}
+textarea{padding:10px 12px;resize:vertical;min-height:80px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:500;color:var(--muted)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ── BUTTONS ── */
+.btn{height:36px;padding:0 16px;border-radius:var(--radius);font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{opacity:0.85}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--text)}
+.btn-success{background:none;border:1px solid #b6e0c9;color:var(--success)}
+.btn-success:hover{background:var(--success-bg)}
+.btn-danger{background:none;border:1px solid #f5c6c0;color:var(--error)}
+.btn-danger:hover{background:#fdf0ef}
+.btn-sm{height:28px;padding:0 10px;font-size:12px}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-green{background:var(--success-bg);color:var(--success)}
+.badge-gray{background:var(--accent-light);color:var(--muted)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-blue{background:#e8f0fb;color:#1a5fa5}
+.badge-purple{background:#f0eeff;color:#5b3fd4}
+
+/* ── ALERTS ── */
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:none}
+.alert.error{background:#fdf0ef;color:var(--error);border:1px solid #f5c6c0;display:block}
+.alert.success{background:var(--success-bg);color:var(--success);border:1px solid #b6e0c9;display:block}
+
+/* ── DOUBT THREADS ── */
+.doubt-thread{border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.doubt-thread-header{padding:12px 16px;background:var(--accent-light);cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.doubt-thread-title{font-size:13.5px;font-weight:500}
+.doubt-thread-body{display:none;padding:16px}
+.doubt-thread.open .doubt-thread-body{display:block}
+.reply-item{padding:10px 12px;border-radius:8px;background:var(--accent-light);margin-bottom:8px;font-size:13px}
+.reply-author{font-weight:500;font-size:12px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.reply-form{display:flex;gap:8px;margin-top:12px}
+.reply-form textarea{min-height:60px;font-size:13px}
+
+/* ── TABS ── */
+.tab-row{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab-btn{
+  padding:10px 18px;font-family:var(--font-body);font-size:13.5px;
+  font-weight:400;color:var(--muted);background:none;border:none;
+  border-bottom:2px solid transparent;cursor:pointer;
+  margin-bottom:-1px;transition:all 0.15s;
+}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+
+/* ── PROFILE DRAWER ── */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);display:none;z-index:200}
+.drawer-overlay.open{display:block}
+.drawer{
+  position:fixed;right:0;top:0;bottom:0;width:500px;
+  background:var(--surface);box-shadow:-4px 0 24px rgba(0,0,0,0.1);
+  overflow-y:auto;padding:28px;z-index:201;
+  transform:translateX(100%);transition:transform 0.25s ease;
+}
+.drawer.open{transform:translateX(0)}
+.drawer-title{font-size:18px;font-weight:500;margin-bottom:4px}
+.drawer-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.detail-section{margin-bottom:20px}
+.detail-section-title{
+  font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);
+}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-label{font-size:11px;color:var(--muted);margin-bottom:2px}
+.detail-val{font-size:13.5px;font-weight:500}
+
+.mini-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+.mini-table th{padding:5px 8px;font-size:11px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);text-align:left}
+.mini-table td{padding:7px 8px;border-bottom:1px solid var(--border)}
+.mini-table tr:last-child td{border-bottom:none}
+
+.chart-wrap{position:relative;height:160px;margin-top:12px}
+
+/* ── ANNOUNCEMENTS ── */
+.ann-card{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:16px;margin-bottom:10px}
+.ann-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.ann-body{font-size:13px;color:var(--muted);line-height:1.6}
+.ann-link{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--accent);font-weight:500}
+.ann-date{font-size:11px;color:var(--muted);margin-top:6px}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-icon{font-size:32px;margin-bottom:10px;opacity:0.4}
+.empty-text{font-size:14px}
+
+/* ── SEARCH ── */
+.search-bar{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color 0.15s}
+.search-bar:focus{border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-name">Chapter</div>
+    <div class="sidebar-brand-sub">CAT Mentorship</div>
+    <div class="mentor-badge">Mentor</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showSection('students',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+      My Students
+      <span class="nav-count" id="nc-students">–</span>
+    </div>
+    <div class="nav-item" onclick="showSection('doubts',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 10a2 2 0 01-2 2H5l-3 3V4a2 2 0 012-2h8a2 2 0 012 2v6z"/></svg>
+      Doubts
+      <span class="nav-count" id="nc-doubts">–</span>
+    </div>
+    <div class="nav-item" onclick="showSection('announcements',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 6A5 5 0 003 6c0 4-2 5-2 5h14s-2-1-2-5z"/><path d="M9.73 13a2 2 0 01-3.46 0"/></svg>
+      Announcements
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-avatar">M</div>
+      <div>
+        <div class="user-name" id="user-name-display">Mentor</div>
+        <div class="user-role">Mentor</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Sign out</button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">My Students</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span id="topbar-greeting" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════ MY STUDENTS ═══════ -->
+    <div class="section active" id="section-students">
+
+      <div class="stat-row" id="mentor-stats"></div>
+
+      <div class="card">
+        <div class="card-title">
+          My students
+          <input class="search-bar" type="text" id="student-search" placeholder="Search by name…" oninput="filterStudents()" style="width:200px">
+        </div>
+        <div class="student-grid" id="student-grid"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══════ DOUBTS ═══════ -->
+    <div class="section" id="section-doubts">
+      <div class="card">
+        <div class="card-title">Doubts</div>
+
+        <div class="tab-row">
+          <button class="tab-btn active" id="tab-mine" onclick="switchDoubtTab('mine')">My students' doubts</button>
+          <button class="tab-btn" id="tab-public" onclick="switchDoubtTab('public')">Community forum</button>
+        </div>
+
+        <div id="doubts-mine">
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <select id="filter-tag-mine" onchange="renderMineDoubts()" style="width:160px;height:32px;font-size:12px">
+              <option value="">All subjects</option>
+              <option>QA</option><option>VARC</option><option>DILR</option><option>GD/PI</option><option>General</option>
+            </select>
+            <select id="filter-status-mine" onchange="renderMineDoubts()" style="width:140px;height:32px;font-size:12px">
+              <option value="">All status</option>
+              <option value="open">Open only</option>
+              <option value="resolved">Resolved only</option>
+            </select>
+          </div>
+          <div id="mine-doubts-list"></div>
+        </div>
+
+        <div id="doubts-public" style="display:none">
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <select id="filter-tag-public" onchange="renderPublicDoubts()" style="width:160px;height:32px;font-size:12px">
+              <option value="">All subjects</option>
+              <option>QA</option><option>VARC</option><option>DILR</option><option>GD/PI</option><option>General</option>
+            </select>
+          </div>
+          <div id="public-doubts-list"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══════ ANNOUNCEMENTS ═══════ -->
+    <div class="section" id="section-announcements">
+      <div class="card">
+        <div class="card-title">Post an update</div>
+        <div id="ann-alert" class="alert"></div>
+        <div class="field"><label>Title (optional)</label><input type="text" id="ann-title" placeholder="e.g. This week's focus areas"></div>
+        <div class="field"><label>Message</label><textarea id="ann-body" placeholder="Write your update here…" style="min-height:100px"></textarea></div>
+        <div class="field"><label>Link (optional)</label><input type="text" id="ann-link" placeholder="https://…"></div>
+        <button class="btn btn-primary" onclick="postAnnouncement()">Post update</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Posted updates</div>
+        <div id="ann-list"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── STUDENT PROFILE DRAWER ── -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="student-drawer">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+    <div>
+      <div class="drawer-title" id="drawer-name">Student</div>
+      <div class="drawer-sub" id="drawer-sub">Details</div>
+    </div>
+    <button onclick="closeDrawer()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);margin-top:-4px">×</button>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="drawer-badges"></div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Personal</div>
+    <div class="detail-grid" id="drawer-personal"></div>
+  </div>
+  <div class="detail-section">
+    <div class="detail-section-title">Academic</div>
+    <div class="detail-grid" id="drawer-academic"></div>
+  </div>
+  <div class="detail-section">
+    <div class="detail-section-title">CAT profile</div>
+    <div class="detail-grid" id="drawer-cat"></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Mock score trend</div>
+    <div id="drawer-mocks-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px"></div>
+    <div class="chart-wrap"><canvas id="drawer-chart"></canvas></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">All mock entries</div>
+    <div id="drawer-mocks-table"></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Study planner — tasks</div>
+    <div id="drawer-tasks"></div>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">This student's doubts</div>
+    <div id="drawer-doubts"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  PASTE YOUR SUPABASE CREDENTIALS HERE
+// ════════════════════════════════════════
+const SUPABASE_URL = 'https://jcdnuzfycuqxxuukxyss.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_FKY1rNd_vLlv2kGle5Bo4Q_uEoedYkt';
+// ════════════════════════════════════════
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let MENTOR_USER = null;
+let ALL_STUDENTS = [];
+let MINE_DOUBTS = [];
+let PUBLIC_DOUBTS = [];
+let DRAWER_CHART = null;
+
+// ── BOOT ──
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return location.href = 'index.html';
+  MENTOR_USER = session.user;
+
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', MENTOR_USER.id).single();
+  if (profile?.role === 'admin') return location.href = 'admin.html';
+  if (profile?.role === 'student') return location.href = 'dashboard.html';
+
+  const name = profile?.full_name || 'Mentor';
+  document.getElementById('user-name-display').textContent = name;
+  document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('topbar-greeting').textContent = greet() + ', ' + name.split(' ')[0];
+
+  loadStudents();
+})();
+
+function greet() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ── NAV ──
+function showSection(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  el.classList.add('active');
+  const titles = { students:'My Students', doubts:'Doubts', announcements:'Announcements' };
+  document.getElementById('page-title').textContent = titles[name];
+  if (name === 'doubts') loadDoubts();
+  if (name === 'announcements') loadAnnouncements();
+}
+
+// ── HELPERS ──
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.className = 'alert ' + type;
+}
+function clearAlert(id) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'alert';
+}
+
+// ══════════════════════════════════
+//  MY STUDENTS
+// ══════════════════════════════════
+
+async function loadStudents() {
+  const { data: details } = await sb.from('student_details').select('*, profiles(*)').eq('mentor_id', MENTOR_USER.id);
+  const { data: mocks } = await sb.from('mock_scores').select('*').in(
+    'student_id', (details || []).map(d => d.id)
+  );
+  const { data: tasks } = await sb.from('tasks').select('*').in(
+    'student_id', (details || []).map(d => d.id)
+  );
+
+  ALL_STUDENTS = (details || []).map(d => {
+    const studentMocks = (mocks || []).filter(m => m.student_id === d.id).sort((a,b) => new Date(a.test_date)-new Date(b.test_date));
+    const studentTasks = (tasks || []).filter(t => t.student_id === d.id);
+    const latestMock = studentMocks[studentMocks.length - 1];
+    const doneTasks = studentTasks.filter(t => t.is_done).length;
+    return {
+      ...d,
+      profile: d.profiles,
+      mocks: studentMocks,
+      tasks: studentTasks,
+      latest_pct: latestMock?.overall_percentile ?? null,
+      mock_count: studentMocks.length,
+      tasks_done: doneTasks,
+      tasks_total: studentTasks.length,
+    };
+  });
+
+  document.getElementById('nc-students').textContent = ALL_STUDENTS.length;
+
+  const avgPct = ALL_STUDENTS.filter(s => s.latest_pct !== null);
+  const avg = avgPct.length ? Math.round(avgPct.reduce((a,s) => a + s.latest_pct, 0) / avgPct.length) : '–';
+  const openDoubts = 0; // loaded separately
+
+  document.getElementById('mentor-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.length}</div><div class="stat-label">Students assigned</div></div>
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.reduce((a,s)=>a+s.mock_count,0)}</div><div class="stat-label">Total mocks logged</div></div>
+    <div class="stat-card"><div class="stat-val">${avg}${typeof avg==='number'?'%ile':''}</div><div class="stat-label">Avg latest percentile</div></div>
+    <div class="stat-card"><div class="stat-val">${ALL_STUDENTS.reduce((a,s)=>a+s.tasks_done,0)}</div><div class="stat-label">Tasks completed</div></div>
+  `;
+
+  renderStudentGrid(ALL_STUDENTS);
+}
+
+function filterStudents() {
+  const q = document.getElementById('student-search').value.toLowerCase();
+  renderStudentGrid(ALL_STUDENTS.filter(s =>
+    (s.profile?.full_name || '').toLowerCase().includes(q)
+  ));
+}
+
+function renderStudentGrid(students) {
+  const el = document.getElementById('student-grid');
+  if (!students.length) {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-text">No students assigned to you yet.<br>Ask your admin to assign students.</div></div>';
+    return;
+  }
+  el.innerHTML = students.map(s => {
+    const name = s.profile?.full_name || 'Student';
+    const taskPct = s.tasks_total > 0 ? Math.round((s.tasks_done / s.tasks_total) * 100) : 0;
+    const trend = s.mocks.length >= 2
+      ? (s.mocks[s.mocks.length-1].overall_percentile > s.mocks[s.mocks.length-2].overall_percentile ? '↑' : '↓')
+      : '';
+    return `
+      <div class="student-card" onclick="openDrawer('${s.id}')">
+        <div class="student-card-name">${name}</div>
+        <div class="student-card-meta">${[s.profile?.city, s.category, s.cat_attempt ? s.cat_attempt + ' attempt' : ''].filter(Boolean).join(' · ')}</div>
+        <div class="student-card-stats">
+          <div class="sc-stat">
+            <div class="sc-stat-val">${s.latest_pct !== null ? s.latest_pct + '%' : '–'} <span style="font-size:11px;color:var(--success)">${trend}</span></div>
+            <div class="sc-stat-label">Latest %ile</div>
+          </div>
+          <div class="sc-stat">
+            <div class="sc-stat-val">${s.mock_count}</div>
+            <div class="sc-stat-label">Mocks</div>
+          </div>
+          <div class="sc-stat">
+            <div class="sc-stat-val">${s.tasks_done}/${s.tasks_total}</div>
+            <div class="sc-stat-label">Tasks done</div>
+          </div>
+        </div>
+        ${s.tasks_total > 0 ? `
+        <div class="progress-bar-wrap">
+          <div class="progress-label"><span>Task progress</span><span>${taskPct}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${taskPct}%"></div></div>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── STUDENT DRAWER ──
+async function openDrawer(uid) {
+  const s = ALL_STUDENTS.find(s => s.id === uid);
+  if (!s) return;
+  const p = s.profile || {};
+
+  document.getElementById('drawer-name').textContent = p.full_name || 'Student';
+  document.getElementById('drawer-sub').textContent = [p.city, s.category].filter(Boolean).join(' · ');
+
+  document.getElementById('drawer-badges').innerHTML = [
+    s.cat_attempt ? `<span class="badge badge-purple">${s.cat_attempt} attempt</span>` : '',
+    s.category ? `<span class="badge badge-gray">${s.category}</span>` : '',
+    s.target_tier ? `<span class="badge badge-blue">${s.target_tier}</span>` : '',
+  ].join('');
+
+  document.getElementById('drawer-personal').innerHTML = pairs([
+    ['Mobile', p.mobile], ['Gender', p.gender], ['City', p.city],
+    ['Company', s.company || 'N/A'], ['Role', s.role || 'N/A'],
+    ['Work-ex', s.work_experience > 0 ? s.work_experience + ' yrs' : 'Fresher'],
+  ]);
+
+  document.getElementById('drawer-academic').innerHTML = pairs([
+    ['10th', s.tenth_score ? s.tenth_score + '%' : '–'],
+    ['12th', s.twelfth_score ? s.twelfth_score + '%' : '–'],
+    ['Degree', s.graduation_degree || '–'],
+    ['Grad year', s.graduation_year || '–'],
+    ['Grad score', s.graduation_score ? s.graduation_score + (s.graduation_score_type === 'cgpa' ? ' CGPA' : '%') : '–'],
+  ]);
+
+  document.getElementById('drawer-cat').innerHTML = pairs([
+    ['CAT attempt', s.cat_attempt || '–'],
+    ['Category', s.category || '–'],
+    ['Target', s.target_tier || '–'],
+  ]);
+
+  // Mock summary
+  const mocks = s.mocks;
+  if (mocks.length) {
+    const latest = mocks[mocks.length - 1];
+    const best = mocks.reduce((a,m) => m.overall_percentile > a.overall_percentile ? m : a, mocks[0]);
+    document.getElementById('drawer-mocks-summary').innerHTML = `
+      <div class="sc-stat"><div class="sc-stat-val">${mocks.length}</div><div class="sc-stat-label">Total mocks</div></div>
+      <div class="sc-stat"><div class="sc-stat-val">${latest.overall_percentile ?? '–'}%ile</div><div class="sc-stat-label">Latest</div></div>
+      <div class="sc-stat"><div class="sc-stat-val">${best.overall_percentile ?? '–'}%ile</div><div class="sc-stat-label">Best</div></div>
+    `;
+    renderDrawerChart(mocks);
+
+    document.getElementById('drawer-mocks-table').innerHTML = `
+      <table class="mini-table">
+        <thead><tr><th>Platform</th><th>Date</th><th>%ile</th><th>QA</th><th>VARC</th><th>DILR</th><th>Notes</th></tr></thead>
+        <tbody>${[...mocks].reverse().map(m => `<tr>
+          <td>${m.platform_name || '–'}</td>
+          <td style="white-space:nowrap">${m.test_date ? new Date(m.test_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '–'}</td>
+          <td><strong>${m.overall_percentile ?? '–'}</strong></td>
+          <td>${m.qa_score ?? '–'}</td>
+          <td>${m.varc_score ?? '–'}</td>
+          <td>${m.dilr_score ?? '–'}</td>
+          <td style="font-size:12px;color:var(--muted)">${m.notes || ''}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } else {
+    document.getElementById('drawer-mocks-summary').innerHTML = '';
+    document.getElementById('drawer-mocks-table').innerHTML = '<div style="font-size:13px;color:var(--muted)">No mocks logged yet</div>';
+    if (DRAWER_CHART) { DRAWER_CHART.destroy(); DRAWER_CHART = null; }
+  }
+
+  // Tasks
+  const tasks = s.tasks;
+  const drawerTasksEl = document.getElementById('drawer-tasks');
+  if (!tasks.length) {
+    drawerTasksEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">No tasks added yet</div>';
+  } else {
+    const daily = tasks.filter(t => t.task_type === 'daily');
+    const weekly = tasks.filter(t => t.task_type === 'weekly');
+    drawerTasksEl.innerHTML = `
+      <div style="font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px">Daily (${daily.filter(t=>t.is_done).length}/${daily.length} done)</div>
+      ${daily.map(t => `<div style="font-size:13px;padding:4px 0;${t.is_done?'text-decoration:line-through;color:var(--muted)':''}">${t.is_done?'✓':'○'} ${t.title}</div>`).join('')}
+      ${weekly.length ? `<div style="font-size:12px;font-weight:500;color:var(--muted);margin:10px 0 6px">Weekly (${weekly.filter(t=>t.is_done).length}/${weekly.length} done)</div>
+      ${weekly.map(t => `<div style="font-size:13px;padding:4px 0;${t.is_done?'text-decoration:line-through;color:var(--muted)':''}">${t.is_done?'✓':'○'} ${t.title}</div>`).join('')}` : ''}
+    `;
+  }
+
+  // Student's doubts
+  const { data: doubts } = await sb.from('doubts')
+    .select('*, doubt_replies(*, profiles(full_name,role))')
+    .eq('student_id', uid).order('created_at', { ascending: false });
+
+  const drawerDoubtsEl = document.getElementById('drawer-doubts');
+  if (!doubts?.length) {
+    drawerDoubtsEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">No doubts posted yet</div>';
+  } else {
+    drawerDoubtsEl.innerHTML = doubts.map(d => `
+      <div style="border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden">
+        <div style="padding:10px 14px;background:var(--accent-light);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">${d.title}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              <span class="badge badge-gray" style="font-size:10px">${d.subject_tag}</span>
+              &nbsp;· ${d.doubt_replies?.length || 0} replies
+              &nbsp;· ${d.is_public ? '<span class="badge badge-green" style="font-size:10px">Public</span>' : '<span class="badge badge-warn" style="font-size:10px">Private</span>'}
+            </div>
+          </div>
+          ${d.is_resolved ? '<span class="badge badge-green">Resolved</span>' : '<span class="badge badge-warn">Open</span>'}
+        </div>
+        <div style="display:none;padding:14px">
+          ${d.body ? `<p style="font-size:13px;color:var(--muted);margin-bottom:12px">${d.body}</p>` : ''}
+          ${(d.doubt_replies||[]).map(r=>`<div class="reply-item"><div class="reply-author">${r.profiles?.full_name||'User'}${r.profiles?.role==='mentor'||r.profiles?.role==='admin'?'<span class="badge badge-green">Mentor</span>':''}</div><div style="font-size:13px;color:var(--muted)">${r.body}</div></div>`).join('')}
+          <div class="reply-form">
+            <textarea id="dreply-${d.id}" placeholder="Reply…"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="drawerReply('${d.id}','${uid}')">Send</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('student-drawer').classList.add('open');
+}
+
+function renderDrawerChart(mocks) {
+  const ctx = document.getElementById('drawer-chart').getContext('2d');
+  if (DRAWER_CHART) DRAWER_CHART.destroy();
+  DRAWER_CHART = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: mocks.map(m => m.test_date ? new Date(m.test_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : ''),
+      datasets: [{
+        label: 'Overall %ile',
+        data: mocks.map(m => m.overall_percentile),
+        borderColor: '#1a1a18', backgroundColor: 'rgba(26,26,24,0.05)',
+        tension: 0.3, pointRadius: 4, pointBackgroundColor: '#1a1a18', fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, grid: { color: '#f0f0ec' }, ticks: { font: { family: 'DM Sans', size: 11 } } },
+        x: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 11 } } }
+      }
+    }
+  });
+}
+
+function closeDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('student-drawer').classList.remove('open');
+}
+
+async function drawerReply(doubtId, studentId) {
+  const ta = document.getElementById('dreply-' + doubtId);
+  const body = ta?.value.trim();
+  if (!body) return;
+  await sb.from('doubt_replies').insert({ doubt_id: doubtId, author_id: MENTOR_USER.id, body });
+  ta.value = '';
+  openDrawer(studentId);
+}
+
+function pairs(arr) {
+  return arr.map(([l,v]) => `<div><div class="detail-label">${l}</div><div class="detail-val">${v||'–'}</div></div>`).join('');
+}
+
+// ══════════════════════════════════
+//  DOUBTS
+// ══════════════════════════════════
+
+function switchDoubtTab(tab) {
+  const isMine = tab === 'mine';
+  document.getElementById('doubts-mine').style.display = isMine ? 'block' : 'none';
+  document.getElementById('doubts-public').style.display = isMine ? 'none' : 'block';
+  document.getElementById('tab-mine').classList.toggle('active', isMine);
+  document.getElementById('tab-public').classList.toggle('active', !isMine);
+}
+
+async function loadDoubts() {
+  // Students' doubts (mapped to this mentor)
+  const studentIds = ALL_STUDENTS.map(s => s.id);
+  if (studentIds.length) {
+    const { data } = await sb.from('doubts')
+      .select('*, profiles(full_name), doubt_replies(*, profiles(full_name,role))')
+      .in('student_id', studentIds)
+      .order('created_at', { ascending: false });
+    MINE_DOUBTS = data || [];
+  } else {
+    MINE_DOUBTS = [];
+  }
+
+  // Public doubts
+  const { data: pub } = await sb.from('doubts')
+    .select('*, profiles(full_name), doubt_replies(*, profiles(full_name,role))')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false });
+  PUBLIC_DOUBTS = pub || [];
+
+  const openCount = MINE_DOUBTS.filter(d => !d.is_resolved).length;
+  document.getElementById('nc-doubts').textContent = openCount || '';
+
+  renderMineDoubts();
+  renderPublicDoubts();
+}
+
+function renderMineDoubts() {
+  const tag = document.getElementById('filter-tag-mine').value;
+  const status = document.getElementById('filter-status-mine').value;
+  let filtered = MINE_DOUBTS;
+  if (tag) filtered = filtered.filter(d => d.subject_tag === tag);
+  if (status === 'open') filtered = filtered.filter(d => !d.is_resolved);
+  if (status === 'resolved') filtered = filtered.filter(d => d.is_resolved);
+  renderDoubtList('mine-doubts-list', filtered, true);
+}
+
+function renderPublicDoubts() {
+  const tag = document.getElementById('filter-tag-public').value;
+  let filtered = PUBLIC_DOUBTS;
+  if (tag) filtered = filtered.filter(d => d.subject_tag === tag);
+  renderDoubtList('public-doubts-list', filtered, true);
+}
+
+function renderDoubtList(elId, doubts, showAuthor) {
+  const el = document.getElementById(elId);
+  if (!doubts.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">💬</div><div class="empty-text">No doubts here</div></div>';
+    return;
+  }
+  el.innerHTML = doubts.map(d => `
+    <div class="doubt-thread" id="dt-${d.id}-${elId}">
+      <div class="doubt-thread-header" onclick="toggleThread('${d.id}','${elId}')">
+        <div style="flex:1">
+          <div class="doubt-thread-title">${d.title}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">
+            ${showAuthor && d.profiles?.full_name ? `By <strong>${d.profiles.full_name}</strong> &nbsp;·&nbsp;` : ''}
+            <span class="badge badge-gray" style="font-size:10px">${d.subject_tag}</span>
+            &nbsp;·&nbsp;${new Date(d.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
+            &nbsp;·&nbsp;${d.doubt_replies?.length || 0} repl${d.doubt_replies?.length === 1 ? 'y' : 'ies'}
+            &nbsp;·&nbsp;${d.is_public
+              ? '<span class="badge badge-green" style="font-size:10px">Public</span>'
+              : '<span class="badge badge-warn" style="font-size:10px">Private</span>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          ${d.is_resolved
+            ? `<span class="badge badge-green">Resolved</span>
+               <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();toggleResolved('${d.id}',false,'${elId}')">Reopen</button>`
+            : `<span class="badge badge-warn">Open</span>
+               <button class="btn btn-success btn-sm" onclick="event.stopPropagation();toggleResolved('${d.id}',true,'${elId}')">Resolve</button>`}
+        </div>
+      </div>
+      <div class="doubt-thread-body">
+        ${d.body ? `<p style="font-size:13.5px;color:var(--muted);margin-bottom:14px;line-height:1.6">${d.body}</p>` : ''}
+        ${(d.doubt_replies || []).map(r => `
+          <div class="reply-item">
+            <div class="reply-author">
+              ${r.profiles?.full_name || 'User'}
+              ${r.profiles?.role === 'mentor' || r.profiles?.role === 'admin' ? '<span class="badge badge-green">Mentor</span>' : ''}
+            </div>
+            <div style="font-size:13px;color:var(--muted)">${r.body}</div>
+          </div>`).join('')}
+        <div class="reply-form">
+          <textarea id="mr-${d.id}-${elId}" placeholder="Reply as mentor…"></textarea>
+          <button class="btn btn-primary btn-sm" onclick="mentorReply('${d.id}','${elId}')">Reply</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleThread(id, elId) {
+  document.getElementById(`dt-${id}-${elId}`)?.classList.toggle('open');
+}
+
+async function toggleResolved(id, resolved, elId) {
+  await sb.from('doubts').update({ is_resolved: resolved }).eq('id', id);
+  loadDoubts();
+}
+
+async function mentorReply(doubtId, elId) {
+  const ta = document.getElementById(`mr-${doubtId}-${elId}`);
+  const body = ta?.value.trim();
+  if (!body) return;
+  await sb.from('doubt_replies').insert({ doubt_id: doubtId, author_id: MENTOR_USER.id, body });
+  ta.value = '';
+  loadDoubts();
+}
+
+// ══════════════════════════════════
+//  ANNOUNCEMENTS
+// ══════════════════════════════════
+
+async function loadAnnouncements() {
+  const { data } = await sb.from('announcements').select('*').order('created_at', { ascending: false });
+  const el = document.getElementById('ann-list');
+  if (!data?.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📢</div><div class="empty-text">No updates posted yet</div></div>';
+    return;
+  }
+  el.innerHTML = data.map(a => `
+    <div class="ann-card">
+      ${a.title ? `<div class="ann-title">${a.title}</div>` : ''}
+      ${a.body ? `<div class="ann-body">${a.body}</div>` : ''}
+      ${a.link ? `<a class="ann-link" href="${a.link}" target="_blank">View resource →</a>` : ''}
+      <div class="ann-date">${new Date(a.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div>
+    </div>`).join('');
+}
+
+async function postAnnouncement() {
+  clearAlert('ann-alert');
+  const title = document.getElementById('ann-title').value.trim();
+  const body = document.getElementById('ann-body').value.trim();
+  const link = document.getElementById('ann-link').value.trim();
+  if (!body && !title) return showAlert('ann-alert', 'Please write a message or title.', 'error');
+  const { error } = await sb.from('announcements').insert({
+    admin_id: MENTOR_USER.id, title, body, link: link || null
+  });
+  if (error) return showAlert('ann-alert', error.message, 'error');
+  document.getElementById('ann-title').value = '';
+  document.getElementById('ann-body').value = '';
+  document.getElementById('ann-link').value = '';
+  showAlert('ann-alert', 'Update posted.', 'success');
+  loadAnnouncements();
+}
+
+// ── LOGOUT ──
+async function doLogout() {
+  await sb.auth.signOut();
+  location.href = 'index.html';
+}
+</script>
+</body>
+</html>
